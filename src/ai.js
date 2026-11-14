@@ -28,7 +28,7 @@ async function ready(){
 }
 /* fotogramas del clip en el tiempo del clip (respeta velocidad y recortes) */
 function frameSource(c,m){
-  const v=document.createElement('video');v.src=m.url;v.muted=true;v.preload='auto';v.playsInline=true;
+  const v=document.createElement('video');v.src=m.proxyUrl||m.url;v.muted=true;v.preload='auto';v.playsInline=true;
   const n=Math.max(1,Math.ceil(c.dur*AI_FPS));
   const S=A.consts.image_size;
   return {count:n,video:v,srcAt:i=>clipSourceTimeAt(c,clamp(i/AI_FPS,0,c.dur-1e-3)),

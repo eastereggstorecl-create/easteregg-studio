@@ -7,7 +7,7 @@ const here=dirname(fileURLToPath(import.meta.url)),root=join(here,'..');
 let h=readFileSync(join(root,'LEGACY.html'),'utf8').replace(/\r\n/g,'\n');
 const css=readFileSync(join(here,'pro.css'),'utf8')+'\n'+readFileSync(join(here,'mobile.css'),'utf8');
 const look=readFileSync(join(here,'look.html'),'utf8');
-const js=readFileSync(join(here,'pro.js'),'utf8')+'\n'+readFileSync(join(here,'pro2.js'),'utf8')+'\n'+readFileSync(join(here,'pro3.js'),'utf8')+'\n'+readFileSync(join(here,'pro4.js'),'utf8')+'\n'+readFileSync(join(here,'ai.js'),'utf8')+'\n'+readFileSync(join(here,'mobile.js'),'utf8');
+const js=readFileSync(join(here,'pro.js'),'utf8')+'\n'+readFileSync(join(here,'pro2.js'),'utf8')+'\n'+readFileSync(join(here,'pro3.js'),'utf8')+'\n'+readFileSync(join(here,'pro4.js'),'utf8')+'\n'+readFileSync(join(here,'ai.js'),'utf8')+'\n'+readFileSync(join(here,'proxy.js'),'utf8')+'\n'+readFileSync(join(here,'mobile.js'),'utf8');
 const tabs2=readFileSync(join(here,'tabs2.html'),'utf8')+readFileSync(join(here,'tabs3.html'),'utf8');
 const subs=readFileSync(join(here,'subs.html'),'utf8');
 let n=0;
@@ -186,6 +186,14 @@ between("  if(!restored){","  }\n  syncUI();renderBin();renderAll();updUndo();",
 rep("/* ---------- inicio: carga automática",js+"\n/* ---------- inicio: carga automática");
 rep("window.__EE={S,M,","window.__EE={PRO,MS,S,M,");
 
+/* ---------- proxies: el visor usa la copia liviana, la exportación el original ---------- */
+rep("const key=(c.track||'V')+'_'+c.mediaId;","const _px=PRO.pxOn(m);const key=(_px?'P':'')+(c.track||'V')+'_'+c.mediaId;");
+rep("v.src=m.url;v.preload='auto';v.playsInline=true;","v.src=_px?m.proxyUrl:m.url;if(_px)v.muted=true;v.preload='auto';v.playsInline=true;");
+rep("v.currentTime=c.in||0;EL[key]=v;attachAudio(v);return v;","v.currentTime=c.in||0;EL[key]=v;if(_px)PRO.pxAudio(v,m);else attachAudio(v);return v;");
+rep("if(el._g)el._g.gain.value=g;else el.volume=clamp(g,0,1);","if(el._g)el._g.gain.value=g;else (el._aud||el).volume=clamp(g,0,1);PRO.audSync(el,target);");
+rep("if(el._g)el._g.gain.value=0;else el.volume=0;","if(el._g)el._g.gain.value=0;else el.volume=0;if(el._aud){el._aud.pause();el._aud.volume=0}");
+rep("PRO.init3();PRO.initAi();","PRO.init3();PRO.initAi();PRO.initPx();");
+rep("m.file=f;m.url=URL.createObjectURL(f);m.offline=false;","m.file=f;m.url=URL.createObjectURL(f);m.offline=false;PRO.pxRestore&&PRO.pxRestore(m);");
 /* ---------- vista previa liviana + resolución nativa ---------- */
 rep("  w=Math.round(w/2)*2;h=Math.round(h/2)*2;\n","  w=Math.round(w/2)*2;h=Math.round(h/2)*2;\n  {const pv=PRO.prevCap&&!S.exporting?PRO.prevCap():0,sh=Math.min(w,h);if(pv&&pv<sh){const k=pv/sh;w=Math.round(w*k/2)*2;h=Math.round(h*k/2)*2}}\n");
 rep("S.upMode=oldMode;S.exporting=false;","S.upMode=oldMode;S.exporting=false;setSize();",3);
