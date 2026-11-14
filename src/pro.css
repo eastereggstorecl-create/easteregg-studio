@@ -158,3 +158,6 @@ button.live{background:#c0263a!important;border-color:#ff5e6e!important;color:#f
 #ph{pointer-events:auto;cursor:ew-resize}
 #ph::after{content:"";position:absolute;top:0;bottom:0;left:-8px;width:14px}
 body.scrubbing,body.scrubbing *{cursor:ew-resize!important;user-select:none}
+.trpanel{background:#16161a;border:1px solid #2f9bff55;border-radius:10px;padding:10px 10px 8px;margin-bottom:12px}
+.trpanel h4{margin:0 0 8px;color:#6cc0ff}
+.trpanel button.on{background:#2f9bff33;border-color:#2f9bff;color:#fff}
