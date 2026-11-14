@@ -2,7 +2,7 @@
    Archivos propios: se sirven al instante desde la caché y se actualizan por detrás.
    Librerías y fuentes de CDN: se guardan la primera vez que se usan.
    Los modelos de IA no se guardan aquí (tienen su propia caché). */
-const C='ee-studio-v1';
+const C='ee-studio-v2';
 const CORE=['./index.html','./','./EDITOR.html','./PRO.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 const CDN=/^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
@@ -10,7 +10,7 @@ self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.
 self.addEventListener('fetch',e=>{
   const r=e.request;if(r.method!=='GET')return;
   const u=new URL(r.url);
-  if(u.pathname.includes('/models/')||u.hostname.includes('huggingface')||r.headers.has('range'))return;
+  if(u.pathname.includes('/models/')||u.pathname.startsWith('/__')||u.hostname.includes('huggingface')||r.headers.has('range'))return;
   if(u.origin===location.origin&&(r.mode==='navigate'||/\.html$|\/$/.test(u.pathname))){
     // páginas: primero internet (siempre la versión nueva), sin conexión la guardada
     e.respondWith(fetch(r).then(res=>{if(res.ok){const cp=res.clone();caches.open(C).then(c=>c.put(r,cp))}return res})

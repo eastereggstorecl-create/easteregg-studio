@@ -7,7 +7,7 @@ const here=dirname(fileURLToPath(import.meta.url)),root=join(here,'..');
 let h=readFileSync(join(root,'LEGACY.html'),'utf8').replace(/\r\n/g,'\n');
 const css=readFileSync(join(here,'pro.css'),'utf8')+'\n'+readFileSync(join(here,'mobile.css'),'utf8');
 const look=readFileSync(join(here,'look.html'),'utf8');
-const js=readFileSync(join(here,'pro.js'),'utf8')+'\n'+readFileSync(join(here,'pro2.js'),'utf8')+'\n'+readFileSync(join(here,'pro3.js'),'utf8')+'\n'+readFileSync(join(here,'pro4.js'),'utf8')+'\n'+readFileSync(join(here,'ai.js'),'utf8')+'\n'+readFileSync(join(here,'proxy.js'),'utf8')+'\n'+readFileSync(join(here,'mobile.js'),'utf8');
+const js=readFileSync(join(here,'pro.js'),'utf8')+'\n'+readFileSync(join(here,'pro2.js'),'utf8')+'\n'+readFileSync(join(here,'pro3.js'),'utf8')+'\n'+readFileSync(join(here,'pro4.js'),'utf8')+'\n'+readFileSync(join(here,'ai.js'),'utf8')+'\n'+readFileSync(join(here,'proxy.js'),'utf8')+'\n'+readFileSync(join(here,'native.js'),'utf8')+'\n'+readFileSync(join(here,'mobile.js'),'utf8');
 const tabs2=readFileSync(join(here,'tabs2.html'),'utf8')+readFileSync(join(here,'tabs3.html'),'utf8');
 const subs=readFileSync(join(here,'subs.html'),'utf8');
 let n=0;
@@ -211,6 +211,14 @@ rep("const sr=48000,len=Math.max(1,Math.ceil(T*sr));","const sr=48000,len=Math.m
 rep("audioBuffer=await oac.startRendering();","audioBuffer=await oac.startRendering();if(_R)audioBuffer=PRO.sliceAudio(audioBuffer,_R.a,_R.b);");
 rep("    document.body.appendChild(a);a.click();a.remove();\n    toast(`✅ Exportado sin pérdida","    if(_R&&_R.name)a.download=_R.name+'.'+ext;\n    if(PRO.exSave)await PRO.exSave(blob,a.download);else{document.body.appendChild(a);a.click();a.remove()}\n    if(!_R)toast(`✅ Exportado sin pérdida");
 rep('<option value="65000000" selected>','<option value="120000000">🏆 Máxima nativa (~120 Mbps · para 4K sin perder nada)</option>\n        <option value="65000000" selected>');
+/* ---------- app de escritorio (Electron + FFmpeg): solo actúa si existe window.eeNative ---------- */
+rep("PRO.initPx();","PRO.initPx();PRO.nat&&PRO.nat.init();");
+rep("m.offline=false;PRO.pxRestore&&PRO.pxRestore(m);","m.offline=false;m.nativePath=PRO.nat?eeNative.pathOf(f):null;PRO.pxRestore&&PRO.pxRestore(m);");
+rep("function probe(m){\n","function probe(m){return PRO.nat&&m.nativePath&&m.type!=='image'?PRO.nat.probe(m,probe0):probe0(m)}\nfunction probe0(m){\n");
+rep("if(['mp4','mov','m4v','webm','mkv'].includes(e))return 'video';","if(['mp4','mov','m4v','webm','mkv','avi','flv','ts','mts','m2ts','wmv','mpg','mpeg','3gp'].includes(e))return 'video';");
+rep("  const fps=S.fps||60;\n","  const fps=S.fps||60;\n  if(engine==='ffmpeg'&&PRO.nat)return PRO.nat.exportVideo({bitrate,exportSharp,oldMode,fps});\n");
+rep("if(!m._abuf){const raw=await m.file.arrayBuffer();","if(!m._abuf){const raw=PRO.nat&&m.nativePath?await PRO.nat.rawAudio(m):await m.file.arrayBuffer();if(!raw)continue;");
+rep("      if(m.type==='video'&&m.file&&!m._parsedTracks){","      if(m.type==='video'&&m.file&&!m._parsedTracks&&!(PRO.nat&&m.file.size>1e9)){");
 
 writeFileSync(join(root,'PRO.html'),h);
 console.log(`PRO.html listo: ${n} parches, ${(h.length/1024).toFixed(0)} KB`);

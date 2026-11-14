@@ -27,7 +27,9 @@ function idb(){if(PX.db)return PX.db;PX.db=new Promise((ok,ko)=>{const r=indexed
 async function dbGet(k){const d=await idb();return new Promise((ok,ko)=>{const r=d.transaction('p').objectStore('p').get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)})}
 async function dbPut(k,v){const d=await idb();return new Promise((ok,ko)=>{const t=d.transaction('p','readwrite');t.objectStore('p').put(v,k);t.oncomplete=ok;t.onerror=()=>ko(t.error)})}
 async function restore(m){
-  if(m.proxyUrl||m.type!=="video")return;const k=keyOf(m);if(!k)return;
+  if(m.proxyUrl||m.type!=="video")return;
+  if(PRO.nat&&m.nativePath){try{const r=await eeNative.proxyCached(m.nativePath);if(r){m.proxyUrl=r.url;m.proxyH=720;renderBin&&renderBin()}}catch(e){}return}
+  const k=keyOf(m);if(!k)return;
   try{const b=await dbGet(k);if(b){m.proxyUrl=URL.createObjectURL(b);m.proxyH=720;renderBin&&renderBin()}}catch(e){console.warn('proxy',e)}
 }
 PRO.pxRestore=restore;
@@ -77,7 +79,7 @@ async function makeProxy(m,onProg){
   return new Blob([muxer.target.buffer],{type:'video/mp4'});
 }
 async function buildAll(){
-  if(PX.busy){PX.cancel=true;return}
+  if(PX.busy){PX.cancel=true;if(PRO.nat)eeNative.cancel();return}
   const used=new Set(S.clips.map(c=>c.mediaId));
   const list=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file&&used.has(m.id));
   const all=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file);
@@ -88,7 +90,15 @@ async function buildAll(){
   try{
     for(let i=0;i<todo.length;i++){
       const m=todo[i];
-      const blob=await makeProxy(m,(f,s)=>{info.innerHTML=`⚡ Creando proxy ${i+1}/${todo.length}: <b>${m.name}</b> · ${Math.round(f*100)}%${f>.02?` · faltan ~${Math.max(1,Math.round(s/f-s))} s`:''}<br>Deja esta pestaña a la vista mientras trabaja.`;$('#pxBar').style.width=(f*100)+'%'});
+      const prog=(f,s)=>{info.innerHTML=`⚡ Creando proxy ${i+1}/${todo.length}: <b>${m.name}</b> · ${Math.round(f*100)}%${f>.02?` · faltan ~${Math.max(1,Math.round(s/f-s))} s`:''}<br>${PRO.nat?'FFmpeg con tu GPU: puedes seguir editando.':'Deja esta pestaña a la vista mientras trabaja.'}`;$('#pxBar').style.width=(f*100)+'%'};
+      if(PRO.nat&&m.nativePath){
+        let r=null;const t0=performance.now();
+        try{r=await eeNative.proxy(m.nativePath,f=>prog(f,(performance.now()-t0)/1000))}catch(e){if(PX.cancel)break;throw e}
+        m.proxyUrl=r.url;m.proxyH=720;ok++;
+        for(const k in EL){if(EL[k].src===m.url&&k.indexOf('P')!==0){EL[k].pause()}}
+        continue;
+      }
+      const blob=await makeProxy(m,prog);
       if(!blob)break;
       m.proxyUrl=URL.createObjectURL(blob);m.proxyH=720;ok++;
       try{await dbPut(keyOf(m),blob)}catch(e){console.warn('proxy save',e)}
@@ -96,7 +106,7 @@ async function buildAll(){
     }
   }catch(e){console.error(e);toast('No pude crear el proxy: '+e.message,8000)}
   finally{
-    PX.busy=false;btn.textContent='⚡ Crear proxies (editar fluido)';$('#pxBar').style.width='0';
+    PX.busy=false;btn.textContent=PRO.nat?'⚡ Crear proxies con la GPU (segundos)':'⚡ Crear proxies (editar fluido)';$('#pxBar').style.width='0';
     info.innerHTML=ok?`✓ ${ok} proxy(s) listos. El visor ya los usa (con «Vista previa» en 720p/1080p/540p); al exportar se usan tus originales.`:(PX.cancel?'Detenido.':'');
     if(PRO.prevCap()===0&&ok){const s=$('#prevRes');if(s){s.value='720';s.onchange()}}
     renderBin&&renderBin();renderAll();
@@ -108,6 +118,7 @@ PRO.initPx=()=>{
   box.innerHTML=`<button id="bProxy" title="Hace copias livianas en 720p de tus videos 4K para que el editor vaya fluido. Al exportar se usan los originales.">⚡ Crear proxies (editar fluido)</button>
     <div class="meter"><i id="pxBar" style="width:0"></i></div><div class="hint" id="pxInfo">¿Videos 4K lentos? Crea proxies: editas con copias livianas y exportas con los originales.</div>`;
   bin.before(box);
+  if(PRO.nat){$('#bProxy').textContent='⚡ Crear proxies con la GPU (segundos)';$('#pxInfo').textContent='¿Videos 4K lentos? La app crea copias livianas 720p con FFmpeg y tu tarjeta de video. Exportas con los originales.'}
   $('#bProxy').onclick=buildAll;
   PRO.pxRestoreAll();
 };

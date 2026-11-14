@@ -1,0 +1,71 @@
+{
+  "name": "easteregg-studio",
+  "productName": "EasterEgg Studio",
+  "version": "1.0.0",
+  "description": "Editor de video EasterEgg Studio para Windows",
+  "author": "EasterEgg",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "copy-editor": "node copy-editor.mjs",
+    "dist": "node copy-editor.mjs && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "ffmpeg-static": "5.3.0"
+  },
+  "devDependencies": {
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "cl.easteregg.studio",
+    "productName": "EasterEgg Studio",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "native.js",
+      "build/icon.png",
+      "package.json",
+      "node_modules/ffmpeg-static/**"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "extraResources": [
+      {
+        "from": "editor",
+        "to": "editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EasterEgg Studio",
+      "artifactName": "EasterEgg-Studio-Instalador-${version}.exe"
+    }
+  },
+  "allowScripts": {
+    "electron@45.3.2": true,
+    "ffmpeg-static@5.3.0": true
+  }
+}

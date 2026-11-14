@@ -2,3 +2,8 @@
 models/sam2/*.onnx
 models/sam2/*.json
 src/sam2.bundle.js.map
+# app de escritorio: dependencias, instalador y copias generadas
+desktop/node_modules/
+desktop/dist/
+desktop/editor/
+desktop/testdata/

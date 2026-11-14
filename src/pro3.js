@@ -195,6 +195,10 @@ async function cutDrop(){
   const cuts=cutList();if(!cuts.length)return toast('No hay cortes de video en el timeline.');
   const base=(S.name||'proyecto').replace(/[^\w\- ]+/g,'').trim()||'proyecto';
   let dir=null;
+  if(PRO.nat){
+    const d=await eeNative.pickFolder();if(!d)return;
+    return cutDropNat(cuts,base,d);
+  }
   if(window.showDirectoryPicker){
     try{dir=await showDirectoryPicker({mode:'readwrite',id:'ee-cutdrop'})}catch(e){if(e&&e.name==='AbortError')return}
   }
@@ -212,6 +216,23 @@ async function cutDrop(){
     }
   }finally{PRO.exRange=null;PRO.exSave=null;eng.value=oldEng}
   toast(done===cuts.length?`✂ CutDrop listo: ${done} videos${dir?' guardados en la carpeta que elegiste':' en Descargas'}.`:`✂ CutDrop se detuvo: ${done} de ${cuts.length} videos exportados.`,9000);
+}
+/* en la app: cada corte se exporta con FFmpeg directo a la carpeta elegida */
+async function cutDropNat(cuts,base,d){
+  const eng=$('#exEngine'),oldEng=eng.value;eng.value='ffmpeg';PRO.exDir=d;
+  let done=0;const t0=performance.now();
+  try{
+    for(let i=0;i<cuts.length;i++){
+      const c=cuts[i],m=M.get(c.mediaId),nm=((m&&m.name)||'corte').replace(/\.[^.]+$/,'').replace(/[^\w\- ]+/g,'').slice(0,40);
+      PRO.exRange={a:c.start,b:c.start+c.dur,name:`${base}-corte-${String(i+1).padStart(2,'0')}-${nm}`};
+      toast(`✂ CutDrop: corte ${i+1} de ${cuts.length}…`,4000);
+      await doExport();
+      if(exCancel||PRO.encErr)break;
+      done++;
+    }
+  }finally{PRO.exRange=null;PRO.exDir=null;eng.value=oldEng}
+  toast(done===cuts.length?`✂ CutDrop listo: ${done} videos en ${d} (${Math.round((performance.now()-t0)/1000)} s).`:`✂ CutDrop se detuvo: ${done} de ${cuts.length} videos exportados.`,10000);
+  if(done)eeNative.reveal(d);
 }
 function wireCutDrop(){
   const go=$('#bStartRender');if(!go)return;
