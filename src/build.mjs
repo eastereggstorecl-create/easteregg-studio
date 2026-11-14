@@ -213,6 +213,10 @@ rep("    document.body.appendChild(a);a.click();a.remove();\n    toast(`✅ Expo
 rep('<option value="65000000" selected>','<option value="120000000">🏆 Máxima nativa (~120 Mbps · para 4K sin perder nada)</option>\n        <option value="65000000" selected>');
 /* ---------- app de escritorio (Electron + FFmpeg): solo actúa si existe window.eeNative ---------- */
 rep("PRO.initPx();","PRO.initPx();PRO.nat&&PRO.nat.init();");
+/* la app guarda dónde está cada archivo y al abrir el proyecto los vuelve a conectar sola */
+rep("dur:m.dur,w:m.w,h:m.h}))})}","dur:m.dur,w:m.w,h:m.h,path:m.nativePath||m.path||undefined}))})}");
+rep("dur:pm.dur,w:pm.w,h:pm.h,offline:true});","dur:pm.dur,w:pm.w,h:pm.h,path:pm.path,offline:true});");
+rep("  const off=[...M.values()].filter(m=>m.offline).length;\n  if(off&&!silent)","  if(PRO.nat)PRO.nat.relink();\n  const off=[...M.values()].filter(m=>m.offline&&!(PRO.nat&&m.path)).length;\n  if(off&&!silent)");
 rep("m.offline=false;PRO.pxRestore&&PRO.pxRestore(m);","m.offline=false;m.nativePath=PRO.nat?eeNative.pathOf(f):null;PRO.pxRestore&&PRO.pxRestore(m);");
 rep("function probe(m){\n","function probe(m){return PRO.nat&&m.nativePath&&m.type!=='image'?PRO.nat.probe(m,probe0):probe0(m)}\nfunction probe0(m){\n");
 rep("if(['mp4','mov','m4v','webm','mkv'].includes(e))return 'video';","if(['mp4','mov','m4v','webm','mkv','avi','flv','ts','mts','m2ts','wmv','mpg','mpeg','3gp'].includes(e))return 'video';");

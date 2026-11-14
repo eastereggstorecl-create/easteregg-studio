@@ -35,5 +35,7 @@ contextBridge.exposeInMainWorld('eeNative',{
   pickFolder:()=>inv('ee:pickFolder'),
   join:(dir,name)=>inv('ee:join',dir,name),
   reveal:(p)=>inv('ee:reveal',p),
-  settings:()=>inv('ee:settings')
+  settings:()=>inv('ee:settings'),
+  stat:(p)=>inv('ee:stat',p),
+  fileUrl:(p)=>inv('ee:fileUrl',p)
 });

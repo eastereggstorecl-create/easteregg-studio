@@ -31,6 +31,28 @@ NAT.probe=async(m,probe0)=>{
   }
   if(info&&m.type==='video'&&info.w&&info.h){m.w=info.w;m.h=info.h}
   if(info&&info.dur&&!(m.dur>0&&isFinite(m.dur)))m.dur=info.dur;
+  m.path=m.nativePath;
+  if(m.type==='video'&&PRO.pxAuto)setTimeout(()=>PRO.pxAuto(m),0);
+};
+
+/* ---------- reabrir proyecto: busca cada archivo en la ruta donde estaba y lo conecta solo ---------- */
+NAT.relink=async()=>{
+  const list=[...M.values()].filter(m=>m.offline&&m.path);
+  if(!list.length)return;
+  let ok=0;const miss=[];
+  for(const m of list){
+    const st=await N.stat(m.path);
+    if(!st){miss.push(m.name);continue}
+    const url=await N.fileUrl(m.path);
+    m.file={name:m.name,size:st.size,lastModified:Math.round(st.mtime),type:'',arrayBuffer:()=>fetch(url).then(r=>r.arrayBuffer())};
+    m.url=url;m.nativePath=m.path;m.offline=false;
+    try{await NAT.probe(m,probe0);ok++}catch(e){m.offline=true;miss.push(m.name);continue}
+    S.clips.filter(c=>c.mediaId===m.id).forEach(c=>{if(EL[c.id]){EL[c.id].pause();delete EL[c.id]}});
+    PRO.pxRestore&&PRO.pxRestore(m);
+  }
+  renderBin();renderAll();typeof updateRelinkBanner==='function'&&updateRelinkBanner();
+  if(ok)toast(`📂 ${ok} archivo(s) del proyecto encontrados y conectados solos.`+(miss.length?` No encontré ${miss.length}: ${miss.slice(0,3).join(', ')} (¿los moviste o renombraste?)`:''),8000);
+  else if(miss.length)toast(`No encontré ${miss.length} archivo(s) del proyecto en su carpeta original. Vincúlalos a mano.`,8000);
 };
 
 /* ---------- audio de archivos enormes: FFmpeg lo saca a un WAV en el disco, sin leer el video entero ---------- */

@@ -31,6 +31,7 @@ module.exports=async function(win,port){
       const sz=fs.statSync(r.file).size;
       R.proxies.push({file:path.basename(f),enc:r.enc,secs:+((Date.now()-t)/1000).toFixed(1),mb:+(sz/1e6).toFixed(1)});log('proxy',JSON.stringify(R.proxies.at(-1)));
     }
+    if(process.env.EE_HDRTEST){await require('./hdr-test')({js,log,files,out,R});fs.writeFileSync(path.join(out,'resultado.json'),JSON.stringify(R,null,1));log('paso: exportar HDR')}
     if(process.env.EE_SEEKTEST){
       R.seek=await js(`(async()=>{const m=[...__EE.M.values()].find(x=>x.nativePath===${JSON.stringify(files[0])});const out={};
         const pos=[];let x=7;for(let i=0;i<12;i++){x=(x*9301+49297)%233280;pos.push(5+(x/233280)*(Math.min(m.dur,200)-10))}

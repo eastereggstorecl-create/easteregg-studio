@@ -4,7 +4,8 @@
    ================================================================== */
 (()=>{
 const PX={busy:false,cancel:false,db:null};
-const big=m=>m&&m.type==='video'&&m.w&&Math.min(m.w,m.h)>1100;
+/* en la app también los videos que la tarjeta no lee bien aunque sean 1080p: HDR, 10 bits (PS5), AV1 */
+const big=m=>m&&m.type==='video'&&m.w&&(Math.min(m.w,m.h)>1100||!!(PRO.nat&&m.ninfo&&(m.ninfo.hdr||m.ninfo.bit10||m.ninfo.vcodec==='av1')));
 const keyOf=m=>m.file?`${m.name}|${m.file.size}|${m.file.lastModified}`:null;
 /* el visor usa proxies cuando «Vista previa» no está en «Completa» */
 /* y también mientras arrastras la línea azul (PRO.scrub): saltar en la copia liviana es mucho más rápido */
@@ -79,12 +80,16 @@ async function makeProxy(m,onProg){
   v.removeAttribute('src');v.load();
   return new Blob([muxer.target.buffer],{type:'video/mp4'});
 }
-async function buildAll(){
-  if(PX.busy){PX.cancel=true;if(PRO.nat)eeNative.cancel();return}
+/* en la app: al importar un video pesado, su proxy se crea solo, uno tras otro, mientras sigues editando */
+PRO.pxAuto=m=>{if(!PRO.nat||!big(m)||m.proxyUrl)return;if(PX.busy){PX.again=true;return}buildAll(true)};
+async function buildAll(auto){
+  if(PX.busy){if(auto===true)return;PX.cancel=true;PX.again=false;if(PRO.nat)eeNative.cancel();return}
+  PX.again=false;
   const used=new Set(S.clips.map(c=>c.mediaId));
   const list=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file&&used.has(m.id));
   const all=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file);
-  const todo=list.length?list:all;
+  const todo=auto===true?all:list.length?list:all;
+  if(auto===true&&!todo.length)return;
   if(!todo.length)return toast([...M.values()].some(big)?'Tus videos grandes ya tienen proxy ⚡.':'No hay videos 4K o 2K que necesiten proxy.');
   PX.busy=true;PX.cancel=false;const btn=$('#bProxy');btn.textContent='■ Detener proxies';
   const info=$('#pxInfo');let ok=0;
@@ -111,6 +116,7 @@ async function buildAll(){
     info.innerHTML=ok?`✓ ${ok} proxy(s) listos. El visor ya los usa (con «Vista previa» en 720p/1080p/540p); al exportar se usan tus originales.`:(PX.cancel?'Detenido.':'');
     if(PRO.prevCap()===0&&ok){const s=$('#prevRes');if(s){s.value='720';s.onchange()}}
     renderBin&&renderBin();renderAll();
+    if(PX.again&&!PX.cancel)setTimeout(()=>buildAll(true),300);
   }
 }
 PRO.initPx=()=>{

@@ -63,7 +63,11 @@ function run(args,{onLine,track=true}={}){
   return {pr,done};
 }
 
+/* HDR (PS5, celulares) → colores normales: si no, el proxy y la exportación salen grises y lavados */
+const TONEMAP='zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p';
 /* ---------- información del archivo ---------- */
+const probeCache=new Map();
+async function probeC(p){let st;try{st=fs.statSync(p)}catch(e){return probe(p)}const k=p+'|'+st.size+'|'+st.mtimeMs;if(!probeCache.has(k))probeCache.set(k,probe(p));return probeCache.get(k)}
 async function probe(p){
   const {done}=run(['-hide_banner','-i',p],{track:false});
   const {err}=await done;
@@ -76,6 +80,7 @@ async function probe(p){
     m=/([\d.]+) fps/.exec(vl)||/([\d.]+) tbr/.exec(vl);if(m)o.fps=+m[1];
     if(/rotate\s*:\s*-?90|displaymatrix: rotation of -?90/.test(err)){const t=o.w;o.w=o.h;o.h=t}
   }
+  if(vl){o.bit10=/p10|10le|12le|p016/.test(vl);o.hdr=/smpte2084|arib-std-b67/.test(vl)}
   const al=(err.match(/Stream #.*?Audio: .*/)||[])[0];if(al)o.acodec=(/Audio: (\w+)/.exec(al)||[])[1]||null;
   return o;
 }
@@ -109,15 +114,17 @@ function prog(job,frac,info){if(win&&!win.isDestroyed()&&job)win.webContents.sen
 function proxyFile(p){return path.join(cacheDir(),'px2-'+keyOf(p)+'.mp4')} // px2: versión con fotogramas clave cada 0,25 s
 async function makeProxy({path:p,job}){
   const out=proxyFile(p);if(fs.existsSync(out))return {url:urlOf(out),file:out,cached:true};
-  const info=await probe(p),encs=await detectEncoders();
+  const info=await probeC(p),encs=await detectEncoders();
   const portrait=info.h>info.w;
   const scale=portrait?'scale=720:-2:flags=bilinear':'scale=-2:720:flags=bilinear';
   const tmp=out+'.part.mp4',t0=Date.now();
   let last=null;
   // 1º todo dentro de la tarjeta NVIDIA (decodifica, achica y codifica sin pasar por el procesador), luego con ayuda del procesador
   const tries=[];
-  if(encs[0]==='h264_nvenc')tries.push({enc:'h264_nvenc',pre:['-hwaccel','cuda','-hwaccel_output_format','cuda'],vf:(portrait?'scale_cuda=720:-2':'scale_cuda=-2:720')+':format=yuv420p'});
-  for(const enc of [encs[0],'libx264'].filter((e,i,a)=>a.indexOf(e)===i))tries.push({enc,pre:['-hwaccel','auto'],vf:scale+',format=yuv420p'});
+  // esta NVIDIA no lee VP9 de 10 bits ni AV1, y el HDR no se convierte dentro de ella
+  const gpuDec=!info.hdr&&!(info.vcodec==='vp9'&&info.bit10)&&info.vcodec!=='av1';
+  if(encs[0]==='h264_nvenc'&&gpuDec)tries.push({enc:'h264_nvenc',pre:['-hwaccel','cuda','-hwaccel_output_format','cuda'],vf:(portrait?'scale_cuda=720:-2':'scale_cuda=-2:720')+':format=yuv420p'});
+  for(const enc of [encs[0],'libx264'].filter((e,i,a)=>a.indexOf(e)===i))tries.push({enc,pre:gpuDec?['-hwaccel','auto']:[],vf:scale+','+(info.hdr?TONEMAP:'format=yuv420p')});
   for(const {enc,pre,vf} of tries){
     const args=['-y','-hide_banner','-loglevel','error','-nostats','-progress','pipe:1',...pre,'-i',p,
       '-map','0:v:0','-map','0:a:0?','-vf',vf,...vArgs(enc,{bitrate:6e6,fps:info.fps||30,fast:true}),
@@ -135,7 +142,7 @@ let cancelled=false;
 /* ---------- audio del original (WAV 48 kHz estéreo) ---------- */
 async function extractAudio({path:p,job}){
   const out=path.join(cacheDir(),'au-'+keyOf(p)+'.wav');if(fs.existsSync(out))return {url:urlOf(out),file:out};
-  const info=await probe(p);if(!info.acodec)return null;
+  const info=await probeC(p);if(!info.acodec)return null;
   const tmp=out+'.part.wav';
   const {done}=run(['-y','-hide_banner','-loglevel','error','-nostats','-progress','pipe:1','-i',p,'-map','0:a:0','-vn','-ac','2','-ar','48000','-c:a','pcm_s16le',tmp],
     {onLine:l=>{const m=/^out_time_us=(\d+)/.exec(l);if(m&&info.dur)prog(job,Math.min(1,+m[1]/1e6/info.dur))}});
@@ -148,9 +155,9 @@ async function extractAudio({path:p,job}){
 const readers=new Map();let rid=0;
 async function frOpen({path:p,start,w,h,fps,scale}){
   const id=++rid,FS=w*h*3/2; // YUV 4:2:0: 2,7 veces menos datos que RGBA
-  const nv=(await detectEncoders())[0]==='h264_nvenc';
+  const nv=(await detectEncoders())[0]==='h264_nvenc',info=await probeC(p);
   // sin reescalar si el tamaño ya es el del video: así FFmpeg lee 4K a ~75 fps con la NVIDIA
-  const vf=`fps=${fps}`+(scale?`,scale=${w}:${h}:flags=bicubic:out_color_matrix=bt709:out_range=tv`:'')+',format=yuv420p';
+  const vf=`fps=${fps}`+(scale?`,scale=${w}:${h}:flags=bicubic`+(info.hdr?'':':out_color_matrix=bt709:out_range=tv'):'')+','+(info.hdr?TONEMAP:'format=yuv420p');
   const args=['-hide_banner','-loglevel','error','-hwaccel',nv?'cuda':'auto','-ss',String(Math.max(0,start)),'-i',p,'-map','0:v:0',
     '-vf',vf,'-fps_mode','passthrough','-f','rawvideo','-pix_fmt','yuv420p','pipe:1']; // passthrough: sin duplicar el primer fotograma
   const {pr,done}=run(args);
@@ -218,13 +225,22 @@ async function encClose(id){
 }
 function encAbort(id){const st=encoders.get(id);if(!st)return;encoders.delete(id);try{st.pr.kill()}catch(e){}setTimeout(()=>{try{fs.unlinkSync(st.out)}catch(e){}},500)}
 
+/* ---------- archivos del disco por el servidor local (para reabrir proyectos sin buscarlos) ---------- */
+const FILE_TOKEN=crypto.randomBytes(12).toString('hex');
+function fileUrl(p){return `${BASE}/__file/${FILE_TOKEN}/${encodeURIComponent(path.basename(p))}?p=${encodeURIComponent(p)}`}
+function serveFile(req,res,u,send){
+  const m=/^\/__file\/([0-9a-f]+)\//.exec(u.pathname);
+  if(!m||m[1]!==FILE_TOKEN){res.writeHead(403);return res.end()}
+  send(req,res,u.searchParams.get('p')||'');
+}
 /* ---------- conexión con el editor ---------- */
 function register(w){
   win=w;
   const DBG=process.env.EE_TEST?(ch,a)=>{if(!/encWrite|frRead/.test(ch)||(DBG.n=(DBG.n||0)+1)<8)console.log('[ipc]',ch,JSON.stringify(a.map(x=>x&&x.byteLength?'bytes:'+x.byteLength:x)).slice(0,200))}:()=>{};
   const H=(ch,fn)=>{ipcMain.removeHandler(ch);ipcMain.handle(ch,(_e,...a)=>{DBG(ch,a);return fn(...a)})};
   H('ee:info',async()=>{const e=await detectEncoders();return {ffmpeg:FFMPEG,encoders:e,gpu:GPU_NAME[e[0]],cache:cacheDir()}});
-  H('ee:probe',probe);
+  H('ee:probe',probeC);
+  H('ee:stat',p=>{try{const st=fs.statSync(p);return st.isFile()?{size:st.size,mtime:st.mtimeMs}:null}catch(e){return null}});
   H('ee:proxy',async a=>{cancelled=false;return makeProxy(a)});
   H('ee:proxyCached',p=>{try{const f=proxyFile(p);return fs.existsSync(f)?{url:urlOf(f),file:f}:null}catch(e){return null}});
   H('ee:cancel',()=>{cancelled=true;for(const pr of running){if(![...readers.values()].some(s=>s.pr===pr)&&![...encoders.values()].some(s=>s.pr===pr))try{pr.kill()}catch(e){}}});
@@ -236,6 +252,7 @@ function register(w){
   H('ee:saveDialog',async name=>{const r=await dialog.showSaveDialog(win,{title:'Guardar video',defaultPath:path.join(app.getPath('videos'),name),filters:[{name:'Video MP4',extensions:['mp4']}]});return r.canceled?null:r.filePath});
   H('ee:pickFolder',async()=>{const r=await dialog.showOpenDialog(win,{title:'Elige la carpeta',properties:['openDirectory','createDirectory']});return r.canceled?null:r.filePaths[0]});
   H('ee:join',(d,n)=>path.join(d,n));
+  H('ee:fileUrl',p=>fileUrl(p));
   H('ee:settings',settings);
   H('ee:reveal',p=>shell.showItemInFolder(p));
   detectEncoders();
@@ -244,4 +261,4 @@ function register(w){
 fs.unlinkSync(path.join(cacheDir(),f))}catch(e){}
 }
 function killAll(){for(const pr of running)try{pr.kill()}catch(e){}}
-module.exports={register,killAll,cacheDir,readCfg,setBase:b=>{BASE=b},probe,detectEncoders,makeProxy,frOpen,frRead,frClose,encOpen,encWrite,encClose};
+module.exports={serveFile,register,killAll,cacheDir,readCfg,setBase:b=>{BASE=b},probe,detectEncoders,makeProxy,frOpen,frRead,frClose,encOpen,encWrite,encClose};

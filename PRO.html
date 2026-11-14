@@ -2650,7 +2650,7 @@ function restore(js){
 function undo(){if(H.i>0){H.i--;restore(H.st[H.i]);autosave();updUndo()}}
 function redo(){if(H.i<H.st.length-1){H.i++;restore(H.st[H.i]);autosave();updUndo()}}
 function updUndo(){$('#bUndo').disabled=H.i<=0;$('#bRedo').disabled=H.i>=H.st.length-1}
-function projJSON(){return JSON.stringify({v:2,name:S.name,aspect:S.aspect,res:S.res,fps:S.fps,upscale:S.upscale,upMode:S.upMode,resNative:S.resNative,resAdapt:S.resAdapt,bpm:S.bpm,off:S.off,clips:S.clips,media:[...M.values()].map(m=>({id:m.id,name:m.name,type:m.type,dur:m.dur,w:m.w,h:m.h}))})}
+function projJSON(){return JSON.stringify({v:2,name:S.name,aspect:S.aspect,res:S.res,fps:S.fps,upscale:S.upscale,upMode:S.upMode,resNative:S.resNative,resAdapt:S.resAdapt,bpm:S.bpm,off:S.off,clips:S.clips,media:[...M.values()].map(m=>({id:m.id,name:m.name,type:m.type,dur:m.dur,w:m.w,h:m.h,path:m.nativePath||m.path||undefined}))})}
 function autosave(){try{localStorage.setItem(PROJ_KEY,projJSON())}catch(e){}}
 function loadProj(o,silent){
   for(const id in EL){EL[id].pause();delete EL[id]}
@@ -2660,7 +2660,7 @@ function loadProj(o,silent){
   (o.media||[]).forEach(pm=>{
     const ex=byName.get(pm.type+'|'+normName(pm.name));
     if(ex&&!ex.offline){idmap[pm.id]=ex.id;newM.set(ex.id,ex)}
-    else{newM.set(pm.id,{id:pm.id,name:pm.name,type:pm.type,dur:pm.dur,w:pm.w,h:pm.h,offline:true});idmap[pm.id]=pm.id}
+    else{newM.set(pm.id,{id:pm.id,name:pm.name,type:pm.type,dur:pm.dur,w:pm.w,h:pm.h,path:pm.path,offline:true});idmap[pm.id]=pm.id}
   });
   for(const m of M.values())if(!newM.has(m.id))newM.set(m.id,m);
   M.clear();newM.forEach((v,k)=>M.set(k,v));
@@ -2677,7 +2677,8 @@ function loadProj(o,silent){
   S.sel=S.clips[0]?.id||null;S.t=0;
   syncUI();setSize();renderBin();renderAll();
   H.st=[snap()];H.i=0;updUndo();
-  const off=[...M.values()].filter(m=>m.offline).length;
+  if(PRO.nat)PRO.nat.relink();
+  const off=[...M.values()].filter(m=>m.offline&&!(PRO.nat&&m.path)).length;
   if(off&&!silent)toast(`Proyecto "${S.name}" cargado (${S.clips.length} cortes). Vincula tus archivos de video locales para reproducir y exportar.`,6500);
 }
 
@@ -7361,7 +7362,8 @@ PRO.initAi=()=>{
    ================================================================== */
 (()=>{
 const PX={busy:false,cancel:false,db:null};
-const big=m=>m&&m.type==='video'&&m.w&&Math.min(m.w,m.h)>1100;
+/* en la app también los videos que la tarjeta no lee bien aunque sean 1080p: HDR, 10 bits (PS5), AV1 */
+const big=m=>m&&m.type==='video'&&m.w&&(Math.min(m.w,m.h)>1100||!!(PRO.nat&&m.ninfo&&(m.ninfo.hdr||m.ninfo.bit10||m.ninfo.vcodec==='av1')));
 const keyOf=m=>m.file?`${m.name}|${m.file.size}|${m.file.lastModified}`:null;
 /* el visor usa proxies cuando «Vista previa» no está en «Completa» */
 /* y también mientras arrastras la línea azul (PRO.scrub): saltar en la copia liviana es mucho más rápido */
@@ -7436,12 +7438,16 @@ async function makeProxy(m,onProg){
   v.removeAttribute('src');v.load();
   return new Blob([muxer.target.buffer],{type:'video/mp4'});
 }
-async function buildAll(){
-  if(PX.busy){PX.cancel=true;if(PRO.nat)eeNative.cancel();return}
+/* en la app: al importar un video pesado, su proxy se crea solo, uno tras otro, mientras sigues editando */
+PRO.pxAuto=m=>{if(!PRO.nat||!big(m)||m.proxyUrl)return;if(PX.busy){PX.again=true;return}buildAll(true)};
+async function buildAll(auto){
+  if(PX.busy){if(auto===true)return;PX.cancel=true;PX.again=false;if(PRO.nat)eeNative.cancel();return}
+  PX.again=false;
   const used=new Set(S.clips.map(c=>c.mediaId));
   const list=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file&&used.has(m.id));
   const all=[...M.values()].filter(m=>big(m)&&!m.proxyUrl&&m.file);
-  const todo=list.length?list:all;
+  const todo=auto===true?all:list.length?list:all;
+  if(auto===true&&!todo.length)return;
   if(!todo.length)return toast([...M.values()].some(big)?'Tus videos grandes ya tienen proxy ⚡.':'No hay videos 4K o 2K que necesiten proxy.');
   PX.busy=true;PX.cancel=false;const btn=$('#bProxy');btn.textContent='■ Detener proxies';
   const info=$('#pxInfo');let ok=0;
@@ -7468,6 +7474,7 @@ async function buildAll(){
     info.innerHTML=ok?`✓ ${ok} proxy(s) listos. El visor ya los usa (con «Vista previa» en 720p/1080p/540p); al exportar se usan tus originales.`:(PX.cancel?'Detenido.':'');
     if(PRO.prevCap()===0&&ok){const s=$('#prevRes');if(s){s.value='720';s.onchange()}}
     renderBin&&renderBin();renderAll();
+    if(PX.again&&!PX.cancel)setTimeout(()=>buildAll(true),300);
   }
 }
 PRO.initPx=()=>{
@@ -7516,6 +7523,28 @@ NAT.probe=async(m,probe0)=>{
   }
   if(info&&m.type==='video'&&info.w&&info.h){m.w=info.w;m.h=info.h}
   if(info&&info.dur&&!(m.dur>0&&isFinite(m.dur)))m.dur=info.dur;
+  m.path=m.nativePath;
+  if(m.type==='video'&&PRO.pxAuto)setTimeout(()=>PRO.pxAuto(m),0);
+};
+
+/* ---------- reabrir proyecto: busca cada archivo en la ruta donde estaba y lo conecta solo ---------- */
+NAT.relink=async()=>{
+  const list=[...M.values()].filter(m=>m.offline&&m.path);
+  if(!list.length)return;
+  let ok=0;const miss=[];
+  for(const m of list){
+    const st=await N.stat(m.path);
+    if(!st){miss.push(m.name);continue}
+    const url=await N.fileUrl(m.path);
+    m.file={name:m.name,size:st.size,lastModified:Math.round(st.mtime),type:'',arrayBuffer:()=>fetch(url).then(r=>r.arrayBuffer())};
+    m.url=url;m.nativePath=m.path;m.offline=false;
+    try{await NAT.probe(m,probe0);ok++}catch(e){m.offline=true;miss.push(m.name);continue}
+    S.clips.filter(c=>c.mediaId===m.id).forEach(c=>{if(EL[c.id]){EL[c.id].pause();delete EL[c.id]}});
+    PRO.pxRestore&&PRO.pxRestore(m);
+  }
+  renderBin();renderAll();typeof updateRelinkBanner==='function'&&updateRelinkBanner();
+  if(ok)toast(`📂 ${ok} archivo(s) del proyecto encontrados y conectados solos.`+(miss.length?` No encontré ${miss.length}: ${miss.slice(0,3).join(', ')} (¿los moviste o renombraste?)`:''),8000);
+  else if(miss.length)toast(`No encontré ${miss.length} archivo(s) del proyecto en su carpeta original. Vincúlalos a mano.`,8000);
 };
 
 /* ---------- audio de archivos enormes: FFmpeg lo saca a un WAV en el disco, sin leer el video entero ---------- */

@@ -8,7 +8,7 @@ Programa de escritorio (Electron + FFmpeg) con el mismo editor de la web, más:
 - **Exportar con FFmpeg** (opción «🚀 FFmpeg con tu GPU»): el editor dibuja cada fotograma (filtros, texto, zoom, upscaler) y la GPU lo codifica **directo al archivo**. CutDrop guarda cada corte en la carpeta que elijas.
 
 ## Instalar en otra PC
-Copia `dist\EasterEgg-Studio-Instalador-1.0.2.exe` y ábrelo. Windows mostrará
+Copia `dist\EasterEgg-Studio-Instalador-1.0.3.exe` y ábrelo. Windows mostrará
 «Windows protegió su PC» (SmartScreen) porque el programa no tiene firma de pago:
 pulsa **Más información → Ejecutar de todas formas**.
 
@@ -27,3 +27,8 @@ pulsa **Más información → Ejecutar de todas formas**.
 | Exportar 10 s a 4K60 con WebCodecs (archivo de 1,5 GB) | 184 s (3,3 fps) |
 
 Prueba automática: `test/harness.js` (variables EE_TEST, EE_FILES, EE_OUT, EE_SECS, EE_FROM, EE_RES, EE_ENGINE).
+
+## Novedades 1.0.3
+- Videos HDR / 10 bits (PS5) y AV1: también tienen proxy (aunque sean 1080p) y se convierten a colores normales en el proxy y al exportar con FFmpeg.
+- Al importar un video pesado, su proxy se crea solo en segundo plano.
+- Los proyectos guardan la ruta de cada archivo: al abrirlos, la app los conecta sola.

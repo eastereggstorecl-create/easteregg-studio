@@ -43,6 +43,7 @@ function startServer(){
   const srv=http.createServer((req,res)=>{
     let p;try{p=decodeURIComponent(new URL(req.url,'http://x').pathname)}catch(e){res.writeHead(400);return res.end()}
     // archivos que crea FFmpeg (proxies, audio): /__cache/<nombre>
+    if(p.startsWith('/__file/'))return native.serveFile(req,res,new URL(req.url,'http://x'),sendFile);
     if(p.startsWith('/__cache/'))return sendFile(req,res,path.join(native.cacheDir(),path.basename(p)));
     if(p==='/')p='/EDITOR.html';
     const file=path.normalize(path.join(ROOT,p));
