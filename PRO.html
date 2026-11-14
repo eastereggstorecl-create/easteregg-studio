@@ -299,6 +299,10 @@ button.live{background:#c0263a!important;border-color:#ff5e6e!important;color:#f
 .trgrid button.on{background:#2f9bff33;border-color:#2f9bff;color:#fff}
 .trband{position:absolute;top:0;bottom:0;z-index:3;pointer-events:none;background:repeating-linear-gradient(135deg,#ffffff38 0 6px,#ffffff10 6px 12px);border:1px solid #ffffff88;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;text-shadow:0 1px 2px #000;overflow:hidden}
 .cliptags{position:absolute;right:4px;top:2px;font-size:11px;z-index:4;pointer-events:none;text-shadow:0 1px 2px #000}
+/* línea de tiempo agarrable */
+#ph{pointer-events:auto;cursor:ew-resize}
+#ph::after{content:"";position:absolute;top:0;bottom:0;left:-8px;width:14px}
+body.scrubbing,body.scrubbing *{cursor:ew-resize!important;user-select:none}
 
 /* ===== MODO MÓVIL (Android): se activa con html.mob ===== */
 html.mob,html.mob body{height:100%;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
@@ -5280,7 +5284,7 @@ const PRO=(()=>{
   }
   function wireMarquee(){
     $('#tracks').addEventListener('pointerdown',e=>{
-      if(e.button!==0||e.pointerType==='touch'||!e.target.classList.contains('trk'))return;
+      if(e.button!==0||e.pointerType==='touch'||!(e.shiftKey||e.ctrlKey||e.metaKey)||!e.target.classList.contains('trk'))return;
       const x0=e.clientX,y0=e.clientY;let box=null;
       const mv=ev=>{
         if(!box&&Math.hypot(ev.clientX-x0,ev.clientY-y0)>6){box=document.createElement('div');box.id='marq';$('#tlin').appendChild(box)}
@@ -6524,8 +6528,25 @@ function wireSpeed(){
    ------------------------------------------------------------------ */
 function loop(){try{speedTick()}catch(e){console.error(e)}requestAnimationFrame(loop)}
 
+/* la línea de tiempo se arrastra: desde la línea misma, la regla o el espacio vacío del timeline */
+function wireScrub(){
+  const tin=$('#tlin'),ph=$('#ph');
+  const scrub=e=>{
+    e.preventDefault();e.stopPropagation();
+    const wasPlaying=S.playing;if(wasPlaying)pause();
+    const go=ev=>{const r=tin.getBoundingClientRect();seek(clamp((ev.clientX-r.left)/S.pps,0,Math.max(total(),.01)))};
+    go(e);document.body.classList.add('scrubbing');
+    const up=()=>{removeEventListener('pointermove',go);removeEventListener('pointerup',up);document.body.classList.remove('scrubbing');if(wasPlaying)play()};
+    addEventListener('pointermove',go);addEventListener('pointerup',up);
+  };
+  ph.addEventListener('pointerdown',e=>{if(e.button===0)scrub(e)});
+  $('#tracks').addEventListener('pointerdown',e=>{
+    if(e.button!==0||e.shiftKey||e.ctrlKey||e.metaKey||e.pointerType==='touch'||!e.target.classList.contains('trk'))return;
+    S.sel=null;MS.clear();renderAll();scrub(e);
+  },true);
+}
 PRO.init3=()=>{
-  wireSpeed();
+  wireSpeed();wireScrub();
   requestAnimationFrame(loop);
   PRO.initFx3&&PRO.initFx3();
 };

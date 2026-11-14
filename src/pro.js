@@ -596,7 +596,7 @@ const PRO=(()=>{
   }
   function wireMarquee(){
     $('#tracks').addEventListener('pointerdown',e=>{
-      if(e.button!==0||e.pointerType==='touch'||!e.target.classList.contains('trk'))return;
+      if(e.button!==0||e.pointerType==='touch'||!(e.shiftKey||e.ctrlKey||e.metaKey)||!e.target.classList.contains('trk'))return;
       const x0=e.clientX,y0=e.clientY;let box=null;
       const mv=ev=>{
         if(!box&&Math.hypot(ev.clientX-x0,ev.clientY-y0)>6){box=document.createElement('div');box.id='marq';$('#tlin').appendChild(box)}

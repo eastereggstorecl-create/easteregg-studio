@@ -129,8 +129,25 @@ function wireSpeed(){
    ------------------------------------------------------------------ */
 function loop(){try{speedTick()}catch(e){console.error(e)}requestAnimationFrame(loop)}
 
+/* la línea de tiempo se arrastra: desde la línea misma, la regla o el espacio vacío del timeline */
+function wireScrub(){
+  const tin=$('#tlin'),ph=$('#ph');
+  const scrub=e=>{
+    e.preventDefault();e.stopPropagation();
+    const wasPlaying=S.playing;if(wasPlaying)pause();
+    const go=ev=>{const r=tin.getBoundingClientRect();seek(clamp((ev.clientX-r.left)/S.pps,0,Math.max(total(),.01)))};
+    go(e);document.body.classList.add('scrubbing');
+    const up=()=>{removeEventListener('pointermove',go);removeEventListener('pointerup',up);document.body.classList.remove('scrubbing');if(wasPlaying)play()};
+    addEventListener('pointermove',go);addEventListener('pointerup',up);
+  };
+  ph.addEventListener('pointerdown',e=>{if(e.button===0)scrub(e)});
+  $('#tracks').addEventListener('pointerdown',e=>{
+    if(e.button!==0||e.shiftKey||e.ctrlKey||e.metaKey||e.pointerType==='touch'||!e.target.classList.contains('trk'))return;
+    S.sel=null;MS.clear();renderAll();scrub(e);
+  },true);
+}
 PRO.init3=()=>{
-  wireSpeed();
+  wireSpeed();wireScrub();
   requestAnimationFrame(loop);
   PRO.initFx3&&PRO.initFx3();
 };
