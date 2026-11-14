@@ -306,6 +306,9 @@ body.scrubbing,body.scrubbing *{cursor:ew-resize!important;user-select:none}
 .trpanel{background:#16161a;border:1px solid #2f9bff55;border-radius:10px;padding:10px 10px 8px;margin-bottom:12px}
 .trpanel h4{margin:0 0 8px;color:#6cc0ff}
 .trpanel button.on{background:#2f9bff33;border-color:#2f9bff;color:#fff}
+.fxbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:10px}
+.fxbar button{padding:7px 4px;font-size:11.5px;line-height:1.15}
+.fxbar [data-f=clear]{border-color:#ff6b6b88;color:#ffb3b3}
 
 /* ===== MODO MÓVIL (Android): se activa con html.mob ===== */
 html.mob,html.mob body{height:100%;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
@@ -6954,8 +6957,50 @@ function trPanel(c,root){
   box.querySelector('[data-act=del]').onclick=()=>{if(rSide==='in')delete c.tr;else delete c.trOut;commit();renderAll();trUi()};
   root.appendChild(box);
 }
+/* quitar / copiar todos los efectos de un clip de una vez */
+const FXDEF={bright:1,contrast:1,sat:1,hue:0,blur:0,fadeIn:0,fadeOut:0};
+const FXDEL=['grade','tr','trOut','mask','zfx','ai','zoomBezier'];
+function hasFx(c){return FXDEL.some(k=>c[k]!=null)||Object.keys(FXDEF).some(k=>c[k]!=null&&c[k]!==FXDEF[k])||(c.zoomKfs&&c.zoomKfs.length>0)}
+function clearFx(c){FXDEL.forEach(k=>delete c[k]);Object.assign(c,FXDEF);c.zoomKfs=[]}
+const cpv=v=>v==null?v:JSON.parse(JSON.stringify(v));
+function copyFx(src,c){
+  clearFx(c);
+  ['grade','zfx','tr','trOut'].forEach(k=>{if(src[k]!=null)c[k]=cpv(src[k])});
+  ['bright','contrast','sat','hue','blur'].forEach(k=>c[k]=src[k]??FXDEF[k]);
+  c.fadeIn=Math.min(src.fadeIn||0,c.dur);c.fadeOut=Math.min(src.fadeOut||0,c.dur);
+  if(src.zoomKfs&&src.zoomKfs.length){c.zoomKfs=cpv(src.zoomKfs);c.zoomBezier=cpv(src.zoomBezier)}
+}
+const visual=c=>c.type!=='audio';
+function fxClear(){
+  const list=(MS.size>1?[...MS].map(id=>S.clips.find(x=>x.id===id)).filter(Boolean):[selClip()]).filter(c=>c&&visual(c));
+  if(!list.length)return toast('Selecciona primero el clip.');
+  list.forEach(clearFx);MK.edit=false;commit();renderAll();trUi();zfUi();mkUi();
+  toast(list.length>1?`Quité todos los efectos de ${list.length} clips (Ctrl+Z para deshacer).`:'Quité todos los efectos del clip (Ctrl+Z para deshacer).');
+}
+function fxAddAll(){
+  const src=selClip();if(!src||!visual(src))return toast('Selecciona primero el clip que tiene los efectos.');
+  const list=S.clips.filter(c=>visual(c)&&c!==src&&c.type!=='text');
+  list.forEach(c=>copyFx(src,c));commit();renderAll();
+  toast(`Copié los efectos a ${list.length} clips: color, filtros, zoom suave, keyframes de zoom, fundidos y transiciones. Las máscaras no se copian (son de cada clip). Ctrl+Z para deshacer.`,9000);
+}
+function fxClearAll(){
+  const list=S.clips.filter(c=>visual(c)&&hasFx(c));
+  if(!list.length)return toast('Ningún clip tiene efectos.');
+  list.forEach(clearFx);MK.edit=false;commit();renderAll();trUi();zfUi();mkUi();
+  toast(`Quité los efectos de ${list.length} clips (Ctrl+Z para deshacer).`);
+}
+function fxBar(c,root){
+  if(!c||!visual(c))return;
+  const b=document.createElement('div');b.className='fxbar';
+  b.innerHTML=`<button data-f="clear" title="Quita color, filtros, transiciones, máscara, zoom suave, keyframes de zoom y fundidos de ${MS.size>1?'los clips seleccionados':'este clip'}">✕ Quitar efectos${MS.size>1?` (${MS.size})`:''}</button>
+    <button data-f="add" title="Copia los efectos de este clip a todos los clips del video">⇉ Añadir a todos</button>
+    <button data-f="clearAll" title="Quita los efectos de todos los clips del video">✕ Quitar a todos</button>`;
+  b.querySelector('[data-f=clear]').onclick=fxClear;b.querySelector('[data-f=add]').onclick=fxAddAll;b.querySelector('[data-f=clearAll]').onclick=fxClearAll;
+  root.appendChild(b);
+}
+PRO.fx={clearFx,copyFx,hasFx,fxClear,fxAddAll,fxClearAll};
 PRO.initFx3=()=>{
-  {const r0=PRO.onSel;PRO.onSel=(c,root)=>{try{r0&&r0(c,root)}finally{try{trPanel(c,root)}catch(e){console.error(e)}}}}
+  {const r0=PRO.onSel;PRO.onSel=(c,root)=>{try{r0&&r0(c,root)}finally{try{fxBar(c,root);trPanel(c,root)}catch(e){console.error(e)}}}}
   wireTr();wireZf();wireMask();
   $$('.tabs button').forEach(b=>b.addEventListener('click',()=>{trUi();zfUi();mkUi()}));
   const r=PRO.onSel;PRO.onSel=(c,root)=>{try{r&&r(c,root)}finally{trUi();zfUi();mkUi()}};
