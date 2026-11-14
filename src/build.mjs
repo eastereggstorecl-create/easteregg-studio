@@ -190,8 +190,18 @@ rep("window.__EE={S,M,","window.__EE={PRO,MS,S,M,");
 rep("  w=Math.round(w/2)*2;h=Math.round(h/2)*2;\n","  w=Math.round(w/2)*2;h=Math.round(h/2)*2;\n  {const pv=PRO.prevCap&&!S.exporting?PRO.prevCap():0,sh=Math.min(w,h);if(pv&&pv<sh){const k=pv/sh;w=Math.round(w*k/2)*2;h=Math.round(h*k/2)*2}}\n");
 rep("S.upMode=oldMode;S.exporting=false;","S.upMode=oldMode;S.exporting=false;setSize();",3);
 rep("$('#res').onchange=e=>{S.res=+e.target.value;setSize();commit();renderAll()};","$('#res').onchange=e=>PRO.resChange(e.target.value);");
-rep("$('#res').value=S.res;","$('#res').value=S.resNative||![720,1080,1440,2160].includes(+S.res)?'n':S.res;");
-rep('<option value="2160">2160p 4K UHD</option>','<option value="2160">2160p 4K UHD</option>\n      <option value="n">⭐ Nativa (igual al video)</option>');
+rep("$('#res').value=S.res;","$('#res').value=S.resAdapt?'a':S.resNative||![720,1080,1440,2160].includes(+S.res)?'n':S.res;");
+rep('<option value="2160">2160p 4K UHD</option>','<option value="2160">2160p 4K UHD</option>\n      <option value="n">⭐ Nativa (igual al video)</option>\n      <option value="a">🧬 Adaptación nativa (sube los demás al más grande)</option>');
+rep("upMode:S.upMode,bpm:S.bpm","upMode:S.upMode,resNative:S.resNative,resAdapt:S.resAdapt,bpm:S.bpm",2);
+rep("S.res=o.res||1440;","S.res=o.res||1440;S.resNative=!!o.resNative;S.resAdapt=!!o.resAdapt;");
+/* en Adaptación nativa el video grande no se toca: solo se escalan los más chicos (ULTIMATE por clip) */
+rep("exportSharp=_exU==='ultimate'?0.3:+_exU","exportSharp=_exU==='ultimate'?(S.resAdapt?0:0.3):+_exU");
+/* ---------- CutDrop: exportar un tramo (cada corte como su propio video) ---------- */
+rep("const T=total(),totalFrames=Math.max(1,Math.round(T*fps));","const _R=PRO.exRange,T0=total(),T=_R?_R.b-_R.a:T0,totalFrames=Math.max(1,Math.round(T*fps));");
+rep("const t=PRO.bridgeGap(f/fps,fps);","const t=PRO.bridgeGap(f/fps+(_R?_R.a:0),fps);");
+rep("const sr=48000,len=Math.max(1,Math.ceil(T*sr));","const sr=48000,len=Math.max(1,Math.ceil(T0*sr));");
+rep("audioBuffer=await oac.startRendering();","audioBuffer=await oac.startRendering();if(_R)audioBuffer=PRO.sliceAudio(audioBuffer,_R.a,_R.b);");
+rep("    document.body.appendChild(a);a.click();a.remove();\n    toast(`✅ Exportado sin pérdida","    if(_R&&_R.name)a.download=_R.name+'.'+ext;\n    if(PRO.exSave)await PRO.exSave(blob,a.download);else{document.body.appendChild(a);a.click();a.remove()}\n    if(!_R)toast(`✅ Exportado sin pérdida");
 rep('<option value="65000000" selected>','<option value="120000000">🏆 Máxima nativa (~120 Mbps · para 4K sin perder nada)</option>\n        <option value="65000000" selected>');
 
 writeFileSync(join(root,'PRO.html'),h);

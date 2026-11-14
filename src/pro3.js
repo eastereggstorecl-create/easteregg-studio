@@ -172,20 +172,76 @@ function nativeOf(){
   M.forEach((m,id)=>{if(m.type!=='video'||!m.w||!m.h)return;if(used.size&&!used.has(id))return;if(!best||m.w*m.h>best.w*best.h)best=m});
   return best;
 }
-function nativeLabel(){const o=$('#res option[value=n]');if(!o)return;const m=nativeOf();o.textContent=m?`⭐ Nativa (${m.w}×${m.h})`:'⭐ Nativa (igual al video)'}
+function nativeLabel(){const o=$('#res option[value=n]'),oa=$('#res option[value=a]');if(!o)return;const m=nativeOf();
+  o.textContent=m?`⭐ Nativa (${m.w}×${m.h})`:'⭐ Nativa (igual al video)';
+  if(oa)oa.textContent=m?`🧬 Adaptación nativa (todo a ${m.w}×${m.h})`:'🧬 Adaptación nativa (sube los demás al más grande)'}
+/* ------------------------------------------------------------------
+   ✂ CUTDROP: cada corte del timeline sale como su propio video
+   ------------------------------------------------------------------ */
+PRO.sliceAudio=(buf,a,b)=>{
+  const sr=buf.sampleRate,i0=Math.max(0,Math.round(a*sr)),i1=Math.min(buf.length,Math.round(b*sr)),n=Math.max(1,i1-i0);
+  const out=new AudioBuffer({numberOfChannels:buf.numberOfChannels,length:n,sampleRate:sr});
+  for(let ch=0;ch<buf.numberOfChannels;ch++)out.copyToChannel(buf.getChannelData(ch).subarray(i0,i0+n),ch);
+  return out;
+};
+PRO.exSave=null;
+function cutList(){
+  const vis=c=>c.type==='video'||c.type==='image';
+  let list=MS.size>1?[...MS].map(id=>S.clips.find(c=>c.id===id)).filter(c=>c&&vis(c)):[];
+  if(!list.length){list=S.clips.filter(c=>c.track==='V1'&&vis(c));if(!list.length)list=S.clips.filter(c=>c.track==='V2'&&vis(c))}
+  return list.sort((a,b)=>a.start-b.start);
+}
+async function cutDrop(){
+  const cuts=cutList();if(!cuts.length)return toast('No hay cortes de video en el timeline.');
+  const base=(S.name||'proyecto').replace(/[^\w\- ]+/g,'').trim()||'proyecto';
+  let dir=null;
+  if(window.showDirectoryPicker){
+    try{dir=await showDirectoryPicker({mode:'readwrite',id:'ee-cutdrop'})}catch(e){if(e&&e.name==='AbortError')return}
+  }
+  PRO.exSave=dir?async(blob,name)=>{const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close()}:null;
+  const eng=$('#exEngine'),oldEng=eng.value;eng.value='webcodecs';
+  let done=0;
+  try{
+    for(let i=0;i<cuts.length;i++){
+      const c=cuts[i],m=M.get(c.mediaId),nm=((m&&m.name)||'corte').replace(/\.[^.]+$/,'').replace(/[^\w\- ]+/g,'').slice(0,40);
+      PRO.exRange={a:c.start,b:c.start+c.dur,name:`${base}-corte-${String(i+1).padStart(2,'0')}-${nm}`};
+      toast(`✂ CutDrop: corte ${i+1} de ${cuts.length}…`,4000);
+      await doExport();
+      if(exCancel||PRO.encErr)break;
+      done++;
+    }
+  }finally{PRO.exRange=null;PRO.exSave=null;eng.value=oldEng}
+  toast(done===cuts.length?`✂ CutDrop listo: ${done} videos${dir?' guardados en la carpeta que elegiste':' en Descargas'}.`:`✂ CutDrop se detuvo: ${done} de ${cuts.length} videos exportados.`,9000);
+}
+function wireCutDrop(){
+  const go=$('#bStartRender');if(!go)return;
+  const b=document.createElement('button');b.id='bCutDrop';b.type='button';
+  b.title='Exporta cada corte del timeline como su propio video, con todos sus efectos, textos y audio. Si seleccionas varios clips, solo esos.';
+  b.innerHTML='✂ CutDrop · cada corte en su video';
+  go.parentElement.insertBefore(b,go);
+  b.onclick=()=>{$('#exportModal').style.display='none';cutDrop()};
+}
 PRO.resChange=v=>{
-  if(v==='n'){
+  if(v==='n'||v==='a'){
     const m=nativeOf();if(!m){toast('Pon primero un video en el timeline.');$('#res').value=String(S.res);return}
-    S.res=Math.min(m.w,m.h);S.resNative=true;
+    S.res=Math.min(m.w,m.h);S.resNative=true;S.resAdapt=v==='a';
+    if(S.resAdapt){
+      // los videos más chicos se escalan con ULTIMATE al tamaño del grande; el grande queda intacto
+      S.upMode='ultimate';const um=$('#upscaleMode');if(um)um.value='ultimate';
+      const small=S.clips.filter(c=>c.type==='video').map(c=>M.get(c.mediaId)).filter(x=>x&&x.w&&Math.min(x.w,x.h)<S.res-8);
+      const names=[...new Set(small.map(x=>`${x.w}×${x.h}`))].join(', ');
+      toast(`🧬 Adaptación nativa: todo sale a ${m.w}×${m.h}. ${small.length?`Los videos más chicos (${names}) se escalan con 👑 ULTIMATE; `:''}el video grande no se toca.`,9000);
+      setSize();commit();renderAll();nativeLabel();return;
+    }
     // el formato sigue al video si es horizontal o vertical
     const ar=m.w/m.h;const asp=Math.abs(ar-16/9)<.03?'16:9':Math.abs(ar-9/16)<.03?'9:16':Math.abs(ar-1)<.03?'1:1':Math.abs(ar-.8)<.03?'4:5':null;
     if(asp&&asp!==S.aspect){S.aspect=asp;$('#aspect').value=asp}
     toast(`Resolución nativa: ${m.w}×${m.h}, igual a tu video. Para que no pierda nada, en Exportar elige «🏆 Máxima nativa».`,8000);
-  }else{S.res=+v;S.resNative=false}
+  }else{S.res=+v;S.resNative=false;S.resAdapt=false}
   setSize();commit();renderAll();nativeLabel();
 };
 PRO.init3=()=>{
-  wireSpeed();wireScrub();wirePrev();nativeLabel();setSize();
+  wireSpeed();wireScrub();wirePrev();wireCutDrop();nativeLabel();setSize();
   $('#res').addEventListener('focus',nativeLabel);$('#res').addEventListener('pointerdown',nativeLabel);
   requestAnimationFrame(loop);
   PRO.initFx3&&PRO.initFx3();
