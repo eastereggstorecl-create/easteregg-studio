@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('eeNative',{
   saveDialog:(name)=>inv('ee:saveDialog',name),
   pickFolder:()=>inv('ee:pickFolder'),
   join:(dir,name)=>inv('ee:join',dir,name),
-  reveal:(p)=>inv('ee:reveal',p)
+  reveal:(p)=>inv('ee:reveal',p),
+  settings:()=>inv('ee:settings')
 });

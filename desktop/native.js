@@ -8,7 +8,47 @@ const FFMPEG=require('ffmpeg-static').replace('app.asar','app.asar.unpacked');
 let BASE='',win=null;
 const running=new Set(); // procesos de FFmpeg vivos (para cancelar o cerrar)
 
-function cacheDir(){const d=path.join(app.getPath('userData'),'ee-cache');fs.mkdirSync(d,{recursive:true});return d}
+/* ajustes guardados (por ahora: dónde van los proxies y el audio) */
+const CFG=()=>path.join(app.getPath('userData'),'ee-config.json');
+function readCfg(){try{return JSON.parse(fs.readFileSync(CFG(),'utf8'))}catch(e){return {}}}
+function writeCfg(c){fs.mkdirSync(path.dirname(CFG()),{recursive:true});fs.writeFileSync(CFG(),JSON.stringify(c,null,1))}
+const defCache=()=>path.join(app.getPath('userData'),'ee-cache');
+function cacheDir(){const c=readCfg().cacheDir;let d=c||defCache();try{fs.mkdirSync(d,{recursive:true})}catch(e){d=defCache();fs.mkdirSync(d,{recursive:true})}return d}
+function dirSize(d){let n=0;try{for(const f of fs.readdirSync(d)){try{const st=fs.statSync(path.join(d,f));if(st.isFile())n+=st.size}catch(e){}}}catch(e){}return n}
+function clearDir(d){let n=0;try{for(const f of fs.readdirSync(d))if(/^(px-|au-|tmp-)/.test(f)){try{n+=fs.statSync(path.join(d,f)).size;fs.unlinkSync(path.join(d,f))}catch(e){}}}catch(e){}return n}
+const MBs=b=>b>1e9?(b/1e9).toFixed(1)+' GB':Math.round(b/1e6)+' MB';
+async function settings(){
+  for(;;){
+    const d=cacheDir(),sz=dirSize(d);
+    const r=await dialog.showMessageBox(win,{type:'info',title:'Ajustes de EasterEgg Studio',
+      message:'Copias livianas (proxies) y audio',
+      detail:`Se guardan en:
+${d}
+
+Ocupan ahora: ${MBs(sz)}
+
+Puedes moverlas a otro disco (por ejemplo D:) o borrarlas. Si las borras, la app las vuelve a crear cuando las necesite.`,
+      buttons:['Cambiar de disco o carpeta…',`Borrar las copias (${MBs(sz)})`,'Abrir la carpeta','Cerrar'],defaultId:0,cancelId:3,noLink:true});
+    if(r.response===0){
+      const o=await dialog.showOpenDialog(win,{title:'Elige dónde guardar las copias (mejor en un disco con espacio)',properties:['openDirectory','createDirectory']});
+      if(o.canceled)continue;
+      const nd=path.join(o.filePaths[0],'EasterEgg Studio cache');
+      try{fs.mkdirSync(nd,{recursive:true});fs.writeFileSync(path.join(nd,'.prueba'),'');fs.unlinkSync(path.join(nd,'.prueba'))}
+      catch(e){await dialog.showMessageBox(win,{type:'error',message:'No puedo escribir en esa carpeta.',detail:String(e.message)});continue}
+      const c=readCfg();c.cacheDir=nd;writeCfg(c);
+      if(sz&&path.resolve(nd)!==path.resolve(d)){
+        const q=await dialog.showMessageBox(win,{type:'question',message:`¿Borrar las copias de la carpeta anterior para liberar ${MBs(sz)}?`,detail:d,buttons:['Sí, borrarlas','No'],defaultId:0,cancelId:1,noLink:true});
+        if(q.response===0)clearDir(d);
+      }
+      await dialog.showMessageBox(win,{type:'info',message:'Listo.',detail:`Desde ahora las copias se guardan en:
+${nd}`});
+      continue;
+    }
+    if(r.response===1){const q=await dialog.showMessageBox(win,{type:'warning',message:`¿Borrar ${MBs(sz)} de copias?`,detail:'Tus videos originales y tus proyectos no se tocan.',buttons:['Borrar','Cancelar'],defaultId:0,cancelId:1,noLink:true});if(q.response===0)clearDir(d);continue}
+    if(r.response===2){shell.openPath(d);continue}
+    return cacheDir();
+  }
+}
 const urlOf=f=>`${BASE}/__cache/${encodeURIComponent(path.basename(f))}`;
 function keyOf(p){const st=fs.statSync(p);return crypto.createHash('sha1').update(`${p}|${st.size}|${st.mtimeMs}`).digest('hex').slice(0,20)}
 
@@ -195,10 +235,11 @@ function register(w){
   H('ee:saveDialog',async name=>{const r=await dialog.showSaveDialog(win,{title:'Guardar video',defaultPath:path.join(app.getPath('videos'),name),filters:[{name:'Video MP4',extensions:['mp4']}]});return r.canceled?null:r.filePath});
   H('ee:pickFolder',async()=>{const r=await dialog.showOpenDialog(win,{title:'Elige la carpeta',properties:['openDirectory','createDirectory']});return r.canceled?null:r.filePaths[0]});
   H('ee:join',(d,n)=>path.join(d,n));
+  H('ee:settings',settings);
   H('ee:reveal',p=>shell.showItemInFolder(p));
   detectEncoders();
   // limpia temporales de exportaciones anteriores
   try{for(const f of fs.readdirSync(cacheDir()))if(/^tmp-|\.part\./.test(f))fs.unlinkSync(path.join(cacheDir(),f))}catch(e){}
 }
 function killAll(){for(const pr of running)try{pr.kill()}catch(e){}}
-module.exports={register,killAll,cacheDir,setBase:b=>{BASE=b},probe,detectEncoders,makeProxy,frOpen,frRead,frClose,encOpen,encWrite,encClose};
+module.exports={register,killAll,cacheDir,readCfg,setBase:b=>{BASE=b},probe,detectEncoders,makeProxy,frOpen,frRead,frClose,encOpen,encWrite,encClose};

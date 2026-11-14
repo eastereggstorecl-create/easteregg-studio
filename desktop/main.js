@@ -5,13 +5,17 @@ const {app,BrowserWindow,shell,session,dialog,Menu}=require('electron');
 const path=require('node:path'),fs=require('node:fs'),http=require('node:http');
 const native=require('./native');
 
-const PORT=47615; // puerto fijo: así el editor guarda sus ajustes y proxies siempre en el mismo «sitio»
+const PORT=(!app.isPackaged&&+process.env.EE_PORT)||47615; // puerto fijo: así el editor guarda sus ajustes y proxies siempre en el mismo «sitio»
 const ROOT=app.isPackaged?path.join(process.resourcesPath,'editor'):path.join(__dirname,'..');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
   '.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.ico':'image/x-icon','.wasm':'application/wasm',
   '.onnx':'application/octet-stream','.mp4':'video/mp4','.webm':'video/webm','.wav':'audio/wav','.txt':'text/plain; charset=utf-8'};
 
+// las pruebas automáticas usan datos aparte y no chocan con la app instalada
+if(process.env.EE_TEST&&!app.isPackaged)app.setPath('userData',path.join(__dirname,'testdata','userdata'));
 if(!app.requestSingleInstanceLock()){app.quit();process.exit(0)}
+// la caché interna del navegador no pasa de 50 MB (los proxies van aparte, en la carpeta que elijas)
+app.commandLine.appendSwitch('disk-cache-size',String(50*1024*1024));
 app.setAppUserModelId('cl.easteregg.studio');
 
 function sendFile(req,res,file){

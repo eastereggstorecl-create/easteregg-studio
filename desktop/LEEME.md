@@ -8,7 +8,7 @@ Programa de escritorio (Electron + FFmpeg) con el mismo editor de la web, más:
 - **Exportar con FFmpeg** (opción «🚀 FFmpeg con tu GPU»): el editor dibuja cada fotograma (filtros, texto, zoom, upscaler) y la GPU lo codifica **directo al archivo**. CutDrop guarda cada corte en la carpeta que elijas.
 
 ## Instalar en otra PC
-Copia `dist\EasterEgg-Studio-Instalador-1.0.0.exe` y ábrelo. Windows mostrará
+Copia `dist\EasterEgg-Studio-Instalador-1.0.1.exe` y ábrelo. Windows mostrará
 «Windows protegió su PC» (SmartScreen) porque el programa no tiene firma de pago:
 pulsa **Más información → Ejecutar de todas formas**.
 

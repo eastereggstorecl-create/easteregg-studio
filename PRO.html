@@ -7673,8 +7673,8 @@ NAT.init=()=>{
     sel.prepend(o);sel.value='ffmpeg';
   }
   const br=document.querySelector('.brand');
-  if(br){const s=document.createElement('span');s.className='ee-app-badge';s.textContent='APP';s.title='App de escritorio con FFmpeg';br.appendChild(s)}
-  N.info().then(i=>{NAT.info=i;if(br)br.lastChild.title='App de escritorio · FFmpeg con '+i.gpu;
+  if(br){const s=document.createElement('span');s.className='ee-app-badge';s.textContent='APP ⚙';s.title='Ajustes de la app: dónde se guardan las copias (proxies)';s.style.cursor='pointer';s.onclick=e=>{e.preventDefault();e.stopPropagation();N.settings&&N.settings()};br.appendChild(s)}
+  N.info().then(i=>{NAT.info=i;if(br)br.lastChild.title='Ajustes de la app (dónde se guardan las copias) · FFmpeg con '+i.gpu;
     if(o2())o2().textContent=o2().textContent.replace('tu GPU',i.gpu)}).catch(()=>{});
   const o2=()=>sel&&sel.querySelector('option[value="ffmpeg"]');
   const st=document.createElement('style');st.textContent='.ee-app-badge{margin-left:6px;font-size:10px;font-weight:800;letter-spacing:.1em;padding:2px 6px;border-radius:5px;background:#ffd166;color:#1f1700;vertical-align:middle}';
