@@ -192,7 +192,7 @@ const PRO=(()=>{
     // Devuelve un canvas con el fotograma procesado, o null si no hay nada que hacer
     function process(c,src,sw,sh,k){
       if(!ok||!sw||!sh||S.bypass)return null;
-      const g=c.grade,needG=gradeOn(g);
+      const g=c.grade&&!c.grade.mute?c.grade:null,needG=gradeOn(g);
       let needU=S.upMode==='ultimate'&&k>1.05&&(S.exporting||!S.playing);
       if(!needG&&!needU)return null;
       if(sw>maxTex||sh>maxTex)return null;

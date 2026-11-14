@@ -126,7 +126,7 @@ rep("$('#upscaleMode').onchange=e=>{S.upscale=+e.target.value;","$('#upscaleMode
 /* ---------- dibujo: color + upscaler por clip ---------- */
 rep(`      g.filter=fl.length?fl.join(' '):'none';
       g.drawImage(src,-sw*k/2,-sh*k/2,sw*k,sh*k);`,
-`      g.filter=fl.length&&!S.bypass?fl.join(' '):'none';
+`      g.filter=fl.length&&!S.bypass&&!c.filtMute?fl.join(' '):'none';
       {const pr=PRO.process(c,src,sw,sh,k);if(pr)src=pr}
       {const am=PRO.aiSrc(c,src,sw,sh);if(am)src=am}
       g.drawImage(src,-sw*k/2,-sh*k/2,sw*k,sh*k);

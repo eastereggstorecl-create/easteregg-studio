@@ -17,17 +17,23 @@ const TR=[
   {id:'wipe',i:'▶|',n:'Barrido',dir:1,soft:1},{id:'whip',i:'≫',n:'Barrido rápido',dir:1},{id:'push',i:'⇥',n:'Empuje',dir:1},
   {id:'zoomin',i:'⊕',n:'Zoom entrando'},{id:'zoomout',i:'⊖',n:'Zoom saliendo'},{id:'blur',i:'◌',n:'Desenfoque'},
   {id:'spin',i:'↻',n:'Giro'},{id:'glitch',i:'▚',n:'Glitch'},{id:'hidden',i:'⟋',n:'Corte oculto (poste)'}];
-function trState(c,t){
-  for(const side of ['in','out']){
-    const T=side==='in'?c.tr:c.trOut;if(!T||!T.type)continue;
-    const d=Math.max(.05,Math.min(T.dur||.6,c.dur)),off=clamp(T.off||0,0,Math.max(0,c.dur-d));
-    const p=side==='in'?(t-c.start-off)/d:(c.start+c.dur-off-t)/d;
-    // antes del punto de inicio (o después del de salida) el clip aún no se ve
-    if(p<0&&(side==='in'?t>=c.start:t<c.start+c.dur))return {T,p:0,side};
-    if(p>=0&&p<1)return {T,p,side};
-  }
+/* cada clip tiene una LISTA de transiciones (se apilan); los proyectos viejos (tr / trOut) se convierten solos */
+let trSeq=0;const tid=()=>'t'+Date.now().toString(36)+(trSeq++);
+function trs(c){
+  if(c.tr){(c.trs=c.trs||[]).push({...c.tr,side:'in',id:c.tr.id||tid()});delete c.tr}
+  if(c.trOut){(c.trs=c.trs||[]).push({...c.trOut,side:'out',id:c.trOut.id||tid()});delete c.trOut}
+  return c.trs||[];
+}
+function trStateOf(c,T,t){
+  const side=T.side||'in',d=Math.max(.05,Math.min(T.dur||.6,c.dur)),off=clamp(T.off||0,0,Math.max(0,c.dur-d));
+  const p=side==='in'?(t-c.start-off)/d:(c.start+c.dur-off-t)/d;
+  // antes del punto de inicio (o después del de salida) el clip aún no se ve
+  if(p<0&&(side==='in'?t>=c.start:t<c.start+c.dur))return {T,p:0,side};
+  if(p>=0&&p<1)return {T,p,side};
   return null;
 }
+function trStates(c,t){const out=[];for(const T of trs(c)){if(!T.type||T.mute)continue;const st=trStateOf(c,T,t);if(st)out.push(st)}return out}
+function trState(c,t){return trStates(c,t)[0]||null}
 function rnd(i,s){const x=Math.sin(i*12.9898+s*78.233)*43758.5453;return x-Math.floor(x)}
 function dirV(d){return d==='l'?[-1,0]:d==='u'?[0,-1]:d==='d'?[0,1]:[1,0]}
 function snapA(){const A=oc('a');ctx2(A).drawImage(cv,0,0);return A}
@@ -117,13 +123,12 @@ PRO.maskShape=maskShape;
    ------------------------------------------------------------------ */
 PRO.drawLayer=(c,draw)=>{
   if(c.type==='audio'){draw(c);return}
-  const t=S.t,tr=trState(c,t),mk=c.mask&&maskShape(c,t),ai=null;
-  if(!tr&&!mk&&!ai){draw(c);return}
+  const t=S.t,sts=trStates(c,t),mk=c.mask&&!c.mask.mute&&maskShape(c,t);
+  if(!sts.length&&!mk){draw(c);return}
   const B=oc('b'),bg=ctx2(B);bg.clearRect(0,0,S.w,S.h);
   PRO._ctx=bg;try{draw(c)}finally{PRO._ctx=null}
   if(mk)applyMask(B,c,mk);
-  if(ai)PRO.aiApply(B,c,ai);
-  if(tr)compose(tr,B);else cx.drawImage(B,0,0);
+  if(sts.length)sts.forEach(st=>compose(st,B));else cx.drawImage(B,0,0);
 };
 
 /* ------------------------------------------------------------------
@@ -132,7 +137,7 @@ PRO.drawLayer=(c,draw)=>{
 const ZF=[{id:'in',n:'Acercar',i:'🔍+'},{id:'out',n:'Alejar',i:'🔍−'},{id:'inout',n:'Acercar y volver',i:'↗↘'},{id:'punch',n:'Golpe',i:'💥'},{id:'pulse',n:'Pulso',i:'💓'},{id:'shake',n:'Temblor',i:'〰'}];
 const CURVE={suave:ez,rapida:x=>x===1?1:1-Math.pow(2,-10*x),rebote:x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)},lineal:x=>x};
 PRO.zfx=(c,t,tf)=>{
-  const Z=c.zfx;if(!Z||!Z.type||!tf)return tf;
+  const Z=c.zfx;if(!Z||!Z.type||Z.mute||!tf)return tf;
   const lt=clamp(t-c.start,0,c.dur),d=Math.max(.05,Math.min(Z.dur||1,c.dur));
   let p;if(Z.at==='todo')p=lt/Math.max(1e-5,c.dur);else if(Z.at==='final')p=(lt-(c.dur-d))/d;else p=lt/d;
   p=clamp(p,0,1);const E=CURVE[Z.curve]||ez,a=Math.max(1.001,Z.amt||1.3);
@@ -155,7 +160,7 @@ PRO.zfx=(c,t,tf)=>{
 /* ------------------------------------------------------------------
    UI: transiciones
    ------------------------------------------------------------------ */
-let side='in';
+let side='in',selTr=null;
 function belowOf(c,t){const lower=c.track==='V2'?['V1']:c.track==='T2'?['T1','V2','V1']:c.track==='T1'?['V2','V1']:[];
   for(const tid of lower){const x=S.clips.find(o=>o.track===tid&&o.type!=='audio'&&t>=o.start-1e-4&&t<o.start+o.dur-1e-4);if(x)return x}return null}
 function autoOverlap(c,d){
@@ -182,14 +187,16 @@ function trApply(id){
   }
   const d=+$('#trDur').value;
   if(side==='in'&&!belowOf(c,c.start+.01))autoOverlap(c,d);
-  const T={type:id,dur:d,dir:(c[side==='in'?'tr':'trOut']||{}).dir||'r',soft:+$('#trSoft').value};
-  if(side==='in')c.tr=T;else c.trOut=T;rSide=side;
-  commit();renderAll();trUi();trPreview();
+  const T={id:tid(),type:id,side,dur:d,dir:'r',soft:+$('#trSoft').value};
+  (c.trs=trs(c)).push(T);selTr=T.id;
+  commit();renderAll();trUi();trPreview(T);
+  const n=trs(c).filter(x=>x.side===side).length;
+  if(n>1)toast(`Ahora hay ${n} transiciones ${side==='in'?'de entrada':'de salida'} en este clip: se apilan. Ajusta cada una en «Capas de efectos» (barra derecha).`,7000);
 }
-function trCur(){const c=selClip();return c?(side==='in'?c.tr:c.trOut):null}
+function trCur(){const c=selClip();if(!c)return null;const L=trs(c);return L.find(x=>x.id===selTr)||[...L].reverse().find(x=>x.side===side)||null}
 function trUi(){
-  const c=selClip(),T=trCur(),def=TR.find(x=>T&&x.id===T.type);
-  $$('#trGrid button').forEach(b=>b.classList.toggle('on',!!T&&b.dataset.t===T.type));
+  const c=selClip(),T=trCur(),def=TR.find(x=>T&&x.id===T.type),have=c?trs(c).filter(x=>x.side===side).map(x=>x.type):[];
+  $$('#trGrid button').forEach(b=>b.classList.toggle('on',have.includes(b.dataset.t)));
   $('#trSideIn').classList.toggle('on',side==='in');$('#trSideOut').classList.toggle('on',side==='out');
   if(T){$('#trDur').value=T.dur;$('#trSoft').value=T.soft??.15;$$('#trDirF [data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d===(T.dir||'r')))}
   $('#trDurV').textContent=(+$('#trDur').value).toFixed(2)+' s';$('#trSoftV').textContent=Math.round(+$('#trSoft').value*100)+'%';
@@ -197,12 +204,12 @@ function trUi(){
   let info='';
   if(!c)info='Selecciona el clip que entra.';
   else{const b=belowOf(c,c.start+.01);
-    info=(T?`<b>${def?def.n:T.type}</b> de ${T.dur.toFixed(2)} s ${side==='in'?'al entrar':'al salir'}. `:'Elige una transición. ')+
+    info=(have.length?`${side==='in'?'Entrada':'Salida'}: <b>${have.map(x=>(TR.find(y=>y.id===x)||{n:x}).n).join(' + ')}</b>. Pulsa otra para <b>apilarla</b>. `:'Elige una transición (puedes apilar varias). ')+
       (b?'Debajo está otro clip: la transición mezcla los dos.':'Debajo no hay otro clip: se mezclará con negro (o pulsa una transición y lo encimo por ti).')}
   $('#trInfo').innerHTML=info;
 }
-function trPreview(){const c=selClip(),T=trCur();if(!c||!T)return;const o=T.off||0,st=side==='in'?c.start+o-.4:c.start+c.dur-o-T.dur-.4;seek(Math.max(0,st));play();
-  const end=(side==='in'?c.start+o+T.dur:c.start+c.dur-o)+.4;const chk=()=>{if(!S.playing)return;if(S.t>=end){pause();return}requestAnimationFrame(chk)};requestAnimationFrame(chk)}
+function trPreview(T0){const c=selClip(),T=T0||trCur();if(!c||!T)return;const sd=T.side||'in',o=T.off||0,st=sd==='in'?c.start+o-.4:c.start+c.dur-o-T.dur-.4;seek(Math.max(0,st));play();
+  const end=(sd==='in'?c.start+o+T.dur:c.start+c.dur-o)+.4;const chk=()=>{if(!S.playing)return;if(S.t>=end){pause();return}requestAnimationFrame(chk)};requestAnimationFrame(chk)}
 function wireTr(){
   const gr=$('#trGrid');
   gr.innerHTML=TR.map(x=>`<button data-t="${x.id}"><i>${x.i}</i>${x.n}</button>`).join('');
@@ -212,8 +219,8 @@ function wireTr(){
     if(T){T.dur=+$('#trDur').value;T.soft=+$('#trSoft').value;renderTimeline();renderFrame()}};
   $('#trDur').oninput=upd;$('#trSoft').oninput=upd;$('#trDur').onchange=$('#trSoft').onchange=()=>trCur()&&commit();
   $$('#trDirF [data-d]').forEach(b=>b.onclick=()=>{const T=trCur();if(T){T.dir=b.dataset.d;commit();renderFrame()}trUi()});
-  $('#trPrev').onclick=trPreview;
-  $('#trDel').onclick=()=>{const c=selClip();if(!c)return;if(side==='in')delete c.tr;else delete c.trOut;commit();renderAll();trUi()};
+  $('#trPrev').onclick=()=>trPreview();
+  $('#trDel').onclick=()=>{const c=selClip(),T=trCur();if(!c||!T)return;c.trs=trs(c).filter(x=>x!==T);selTr=null;commit();renderAll();trUi()};
 }
 
 /* ------------------------------------------------------------------
@@ -343,22 +350,21 @@ function wireMask(){
 PRO.clipDeco=(d,c)=>{
   const add=(T,right)=>{if(!T||!T.type)return;const w=Math.min(T.dur,c.dur)*S.pps,b=document.createElement('div');b.className='trband';
     b.style.cssText=`${right?'right':'left'}:${(T.off||0)*S.pps}px;width:${w}px`;b.title='Transición: '+((TR.find(x=>x.id===T.type)||{}).n||T.type);b.textContent=(TR.find(x=>x.id===T.type)||{}).i||'◐';d.appendChild(b)};
-  add(c.tr,false);add(c.trOut,true);
+  trs(c).forEach(T=>{if(!T.mute)add(T,T.side==='out')});
   const tags=(c.mask?'◐':'')+(c.zfx?'🔍':'')+(c.ai?'🤖':'');
   if(tags){const s=document.createElement('span');s.className='cliptags';s.textContent=tags;d.appendChild(s)}
 };
 
 /* panel de la transición en la barra lateral derecha */
 const NEEDOP=['black','white','flash','glitch'],NEEDAMT=['whip','zoomin','zoomout','blur','spin','glitch'];
-let rSide='in';
 function trPanel(c,root){
-  if(!c||c.type==='audio'||(!c.tr&&!c.trOut))return;
-  if(rSide==='in'&&!c.tr)rSide='out';if(rSide==='out'&&!c.trOut)rSide='in';
-  const T=rSide==='in'?c.tr:c.trOut,def=TR.find(x=>x.id===T.type)||{n:T.type};
+  if(!c||c.type==='audio')return;
+  const T=trCur();if(!T||!T.type)return;
+  const rSide=T.side||'in',def=TR.find(x=>x.id===T.type)||{n:T.type};
   const d=Math.min(T.dur||.6,c.dur),off=T.off||0;
   const box=document.createElement('div');box.className='trpanel';
-  box.innerHTML=`<h4>🎬 Transición · ${def.n}</h4>
-   ${c.tr&&c.trOut?`<div class="row" style="gap:4px;margin-bottom:6px"><button data-side="in" class="${rSide==='in'?'on':''}" style="flex:1">Entrada</button><button data-side="out" class="${rSide==='out'?'on':''}" style="flex:1">Salida</button></div>`:''}
+  box.innerHTML=`<h4>🎬 ${def.n} · ${rSide==='in'?'entrada':'salida'}</h4>
+   <div class="row" style="gap:4px;margin-bottom:6px"><button data-side="in" class="${rSide==='in'?'on':''}" style="flex:1">Al entrar</button><button data-side="out" class="${rSide==='out'?'on':''}" style="flex:1">Al salir</button></div>
    <div class="fld"><label>Tipo</label><select data-k="type" style="width:100%">${TR.filter(x=>x.id!=='hidden').map(x=>`<option value="${x.id}" ${x.id===T.type?'selected':''}>${x.n}</option>`).join('')}</select></div>
    <div class="fld"><label>${rSide==='in'?'Empieza a los':'Termina antes del final'} <span class="pill" data-v="off">${off.toFixed(2)} s</span></label><input type="range" data-k="off" min="0" max="${Math.max(0,c.dur-d).toFixed(3)}" step="0.01" value="${off}"></div>
    <div class="fld"><label>Duración <span class="pill" data-v="dur">${d.toFixed(2)} s</span></label><input type="range" data-k="dur" min="0.1" max="${Math.min(4,c.dur).toFixed(2)}" step="0.01" value="${d}"></div>
@@ -378,7 +384,7 @@ function trPanel(c,root){
     inp.onchange=()=>{commit();trUi()};
   });
   box.querySelector('[data-k=type]').onchange=e=>{T.type=e.target.value;commit();renderAll();trUi()};
-  box.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{rSide=b.dataset.side;renderInspector()});
+  box.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{T.side=b.dataset.side;commit();renderAll()});
   box.querySelectorAll('[data-dir]').forEach(b=>b.onclick=()=>{T.dir=b.dataset.dir;commit();renderAll()});
   box.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{
     const lt=clamp(S.t-c.start,0,c.dur),dd=Math.min(T.dur||.6,c.dur);
@@ -392,19 +398,19 @@ function trPanel(c,root){
     }
     commit();renderAll();trUi();
   });
-  box.querySelector('[data-act=prev]').onclick=()=>{side=rSide;trPreview()};
-  box.querySelector('[data-act=del]').onclick=()=>{if(rSide==='in')delete c.tr;else delete c.trOut;commit();renderAll();trUi()};
+  box.querySelector('[data-act=prev]').onclick=()=>trPreview(T);
+  box.querySelector('[data-act=del]').onclick=()=>{c.trs=trs(c).filter(x=>x!==T);selTr=null;commit();renderAll();trUi()};
   root.appendChild(box);
 }
 /* quitar / copiar todos los efectos de un clip de una vez */
 const FXDEF={bright:1,contrast:1,sat:1,hue:0,blur:0,fadeIn:0,fadeOut:0};
-const FXDEL=['grade','tr','trOut','mask','zfx','ai','zoomBezier'];
-function hasFx(c){return FXDEL.some(k=>c[k]!=null)||Object.keys(FXDEF).some(k=>c[k]!=null&&c[k]!==FXDEF[k])||(c.zoomKfs&&c.zoomKfs.length>0)}
-function clearFx(c){FXDEL.forEach(k=>delete c[k]);Object.assign(c,FXDEF);c.zoomKfs=[]}
+const FXDEL=['grade','tr','trOut','trs','mask','zfx','ai','zoomBezier'];
+function hasFx(c){return FXDEL.some(k=>c[k]!=null&&!(k==='trs'&&!c[k].length))||Object.keys(FXDEF).some(k=>c[k]!=null&&c[k]!==FXDEF[k])||(c.zoomKfs&&c.zoomKfs.length>0)}
+function clearFx(c){FXDEL.forEach(k=>delete c[k]);Object.assign(c,FXDEF);c.zoomKfs=[];delete c.filtMute}
 const cpv=v=>v==null?v:JSON.parse(JSON.stringify(v));
 function copyFx(src,c){
   clearFx(c);
-  ['grade','zfx','tr','trOut'].forEach(k=>{if(src[k]!=null)c[k]=cpv(src[k])});
+  trs(src);['grade','zfx'].forEach(k=>{if(src[k]!=null)c[k]=cpv(src[k])});if(src.trs&&src.trs.length)c.trs=cpv(src.trs).map(T=>({...T,id:tid()}));
   ['bright','contrast','sat','hue','blur'].forEach(k=>c[k]=src[k]??FXDEF[k]);
   c.fadeIn=Math.min(src.fadeIn||0,c.dur);c.fadeOut=Math.min(src.fadeOut||0,c.dur);
   if(src.zoomKfs&&src.zoomKfs.length){c.zoomKfs=cpv(src.zoomKfs);c.zoomBezier=cpv(src.zoomBezier)}
@@ -437,13 +443,59 @@ function fxBar(c,root){
   b.querySelector('[data-f=clear]').onclick=fxClear;b.querySelector('[data-f=add]').onclick=fxAddAll;b.querySelector('[data-f=clearAll]').onclick=fxClearAll;
   root.appendChild(b);
 }
+/* panel «Capas de efectos»: todo lo que tiene el clip, como capas */
+const ZFN={in:'Acercar',out:'Alejar',inout:'Acercar y volver',punch:'Golpe',pulse:'Pulso',shake:'Temblor'};
+const MKN={line:'Línea / corte oculto',rect:'Rectángulo',ellipse:'Óvalo',poly:'Forma libre'};
+function layerRows(c){
+  const rows=[];
+  trs(c).forEach((T,i,L)=>{const d=TR.find(x=>x.id===T.type)||{n:T.type,i:'◐'};
+    rows.push({k:'tr',T,icon:d.i,name:d.n,sub:`${T.side==='out'?'salida':'entrada'} · ${(+T.dur||.6).toFixed(2)} s${T.off?` · desde ${(+T.off).toFixed(2)} s`:''}`,
+      on:!T.mute,sel:T.id===selTr,
+      toggle:()=>{T.mute=!T.mute},del:()=>{c.trs=trs(c).filter(x=>x!==T);if(selTr===T.id)selTr=null},
+      up:i>0?()=>{L.splice(i-1,0,L.splice(i,1)[0])}:null,down:i<L.length-1?()=>{L.splice(i+1,0,L.splice(i,1)[0])}:null,
+      pick:()=>{selTr=T.id;side=T.side||'in'}})});
+  if(c.mask)rows.push({k:'mask',icon:'◐',name:'Máscara',sub:`${MKN[c.mask.type]||c.mask.type} · ${c.mask.kfs.length} marca(s)`,on:!c.mask.mute,
+    toggle:()=>{c.mask.mute=!c.mask.mute},del:()=>{delete c.mask;MK.edit=false},pick:()=>{const b=document.querySelector('.tabs [data-tab=mask]');if(b)b.click()}});
+  if(c.ai)rows.push({k:'ai',icon:'🤖',name:'Máscara con IA',sub:c.ai.fg===false?'borra el objeto':'muestra solo el objeto',on:!c.ai.off,
+    toggle:()=>{c.ai.off=!c.ai.off},del:()=>{delete c.ai},pick:()=>{const b=document.querySelector('.tabs [data-tab=mask]');if(b)b.click()}});
+  if(c.zfx)rows.push({k:'zfx',icon:'🔍',name:'Zoom suave',sub:`${ZFN[c.zfx.type]||c.zfx.type} · ${Math.round((c.zfx.amt||1)*100)}%`,on:!c.zfx.mute,
+    toggle:()=>{c.zfx.mute=!c.zfx.mute},del:()=>{delete c.zfx},pick:()=>{const b=document.querySelector('.tabs [data-tab=zoom]');if(b)b.click()}});
+  if(c.grade)rows.push({k:'grade',icon:'🎨',name:'Color / look',sub:'filtro de color',on:!c.grade.mute,
+    toggle:()=>{c.grade.mute=!c.grade.mute},del:()=>{delete c.grade},pick:()=>{const b=document.querySelector('.tabs [data-tab=look]');if(b)b.click()}});
+  const fl=['bright','contrast','sat','hue','blur'].filter(k=>c[k]!=null&&c[k]!==FXDEF[k]);
+  if(fl.length)rows.push({k:'filt',icon:'✨',name:'Ajustes',sub:fl.map(k=>({bright:'brillo',contrast:'contraste',sat:'saturación',hue:'tono',blur:'desenfoque'})[k]).join(', '),on:!c.filtMute,
+    toggle:()=>{c.filtMute=!c.filtMute},del:()=>{fl.forEach(k=>c[k]=FXDEF[k]);delete c.filtMute}});
+  if(c.fadeIn>0)rows.push({k:'fi',icon:'◑',name:'Fundido de entrada',sub:`${(+c.fadeIn).toFixed(2)} s`,on:true,del:()=>{c.fadeIn=0}});
+  if(c.fadeOut>0)rows.push({k:'fo',icon:'◑',name:'Fundido de salida',sub:`${(+c.fadeOut).toFixed(2)} s`,on:true,del:()=>{c.fadeOut=0}});
+  if(c.zoomKfs&&c.zoomKfs.length)rows.push({k:'kf',icon:'◆',name:'Keyframes de zoom',sub:`${c.zoomKfs.length} keyframe(s)`,on:true,del:()=>{c.zoomKfs=[]}});
+  return rows;
+}
+function fxLayers(c,root){
+  if(!c||!visual(c)||MS.size>1)return;
+  const rows=layerRows(c);
+  const box=document.createElement('div');box.className='layers';
+  box.innerHTML=`<h4>🧱 Capas de efectos <span class="pill">${rows.length}</span></h4>`+(rows.length?'':'<div class="hint">Este clip no tiene efectos. Agrega transiciones, máscara, zoom suave o color desde las pestañas de la izquierda.</div>');
+  rows.forEach((r,i)=>{
+    const el=document.createElement('div');el.className='layer'+(r.on?'':' off')+(r.sel?' sel':'');
+    el.innerHTML=`<span class="li">${r.icon}</span><span class="ln"><b>${r.name}</b><small>${r.sub}</small></span>
+      ${r.toggle?`<button data-a="t" title="${r.on?'Ocultar (sin borrar)':'Mostrar'}">${r.on?'👁':'🚫'}</button>`:''}
+      ${r.up?'<button data-a="u" title="Subir capa">↑</button>':''}${r.down?'<button data-a="d" title="Bajar capa">↓</button>':''}
+      <button data-a="x" title="Quitar esta capa">✕</button>`;
+    el.onclick=e=>{const a=e.target.closest('button');const act=a&&a.dataset.a;
+      if(act==='t')r.toggle();else if(act==='u')r.up();else if(act==='d')r.down();else if(act==='x')r.del();else if(r.pick){r.pick();renderInspector();trUi();return}else return;
+      commit();renderAll();trUi();zfUi();mkUi()};
+    box.appendChild(el);
+  });
+  if(rows.some(r=>r.k==='tr'))box.insertAdjacentHTML('beforeend','<div class="hint" style="margin-top:4px">Las transiciones se aplican de arriba hacia abajo y se pueden mezclar (por ejemplo, Fundido + Fundido a blanco). Toca una para editarla abajo.</div>');
+  root.appendChild(box);
+}
 PRO.fx={clearFx,copyFx,hasFx,fxClear,fxAddAll,fxClearAll};
 PRO.initFx3=()=>{
-  {const r0=PRO.onSel;PRO.onSel=(c,root)=>{try{r0&&r0(c,root)}finally{try{fxBar(c,root);trPanel(c,root)}catch(e){console.error(e)}}}}
+  {const r0=PRO.onSel;PRO.onSel=(c,root)=>{try{r0&&r0(c,root)}finally{try{fxBar(c,root);fxLayers(c,root);trPanel(c,root)}catch(e){console.error(e)}}}}
   wireTr();wireZf();wireMask();
   $$('.tabs button').forEach(b=>b.addEventListener('click',()=>{trUi();zfUi();mkUi()}));
   const r=PRO.onSel;PRO.onSel=(c,root)=>{try{r&&r(c,root)}finally{trUi();zfUi();mkUi()}};
   trUi();mkUi();
 };
-PRO._t4={TR,trState,maskShape,MK,compose,autoOverlap};
+PRO._t4={TR,trState,trStates,trs,maskShape,MK,compose,autoOverlap};
 })();
