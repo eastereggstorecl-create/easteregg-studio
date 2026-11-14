@@ -114,7 +114,8 @@ async function click(e){
 }
 function fail(err){
   console.error(err);
-  if(err&&err.message==='NOMODEL')info('⚠ Falta el modelo de IA en <code>models/sam2/</code>. Abre <b>models/sam2/LEEME.txt</b> para instalarlo (una sola vez).');
+  if(location.protocol==='file:')info('⚠ Abriste el editor como archivo, y así Chrome no deja usar la IA. Ciérralo y ábrelo con <b>ABRIR EDITOR.bat</b> (en la carpeta editor-pro).');
+  else if(err&&err.message==='NOMODEL')info('⚠ Falta el modelo de IA en <code>models/sam2/</code>. Abre <b>models/sam2/LEEME.txt</b> para instalarlo (una sola vez).');
   else info('⚠ La IA falló: '+(err&&err.message||err));
 }
 async function track(){
