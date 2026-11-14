@@ -1,0 +1,80 @@
+/* ===== MODO MÓVIL (Android): se activa con html.mob ===== */
+html.mob,html.mob body{height:100%;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+.mob #app{overflow:clip;height:100dvh;grid-template-columns:100%!important;grid-template-rows:46px minmax(0,1fr) var(--mtlh,34dvh) 60px!important;grid-template-areas:"top" "center" "tl" "nav"!important}
+.mob button,.mob select,.mob input{font-size:14px}
+.mob button{min-height:36px}
+/* cabecera compacta: lo demás va a la hoja «Proyecto» */
+.mob header{gap:8px;padding:0 8px;overflow:hidden}
+.mob header .brand{font-size:13px;white-space:nowrap}
+.mob header .sp{flex:1}
+.mob #bInstallApp,.mob #bLoadCyber{display:none!important}
+.mob #bExport{padding:8px 14px}
+/* hojas inferiores */
+.mob #left,.mob #right,.mob #mProj{position:fixed!important;left:0;right:0;bottom:60px;height:min(62dvh,600px);z-index:60;
+  transform:translateY(calc(100% + 70px));transition:transform .22s ease;border:0;border-top:1px solid var(--line);
+  border-radius:16px 16px 0 0;box-shadow:0 -12px 40px #000a;background:var(--p1)}
+.mob #left.mon,.mob #right.mon,.mob #mProj.mon{transform:none}
+.mob #left .tabs{display:none}
+.mob #left .tabpane{padding-bottom:30px}
+.mob #right{padding:44px 14px 30px}
+.mob #mProj{overflow:auto;padding:44px 14px 30px;display:flex;flex-direction:column;gap:10px}
+.mob #mProj label{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--mut)}
+.mob #mProj select,.mob #mProj input[type=text]{flex:1;max-width:62%;padding:8px}
+.mob #mProj .row{display:flex;gap:8px;flex-wrap:wrap}
+.mob #mProj .row button{flex:1}
+.msh{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;
+  font-weight:700;font-size:14px;background:var(--p1);z-index:3;border-radius:16px 16px 0 0}
+.msh::before{content:"";position:absolute;top:6px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#ffffff33}
+.msh button{min-height:30px;padding:2px 12px}
+.mob #left{padding-top:40px}
+.mob #mVeil{position:fixed;inset:0 0 60px 0;background:#0006;z-index:59;display:none}
+.mob.msheet #mVeil{display:block}
+/* barra de navegación inferior */
+#mNav{display:none}
+.mob #mNav{grid-area:nav;display:flex;overflow-x:auto;scrollbar-width:none;background:#141217;border-top:1px solid var(--line);z-index:61;padding-bottom:env(safe-area-inset-bottom)}
+.mob #mNav::-webkit-scrollbar{display:none}
+.mob #mNav button{flex:0 0 auto;min-width:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:none;border:0;border-radius:0;color:var(--mut);font-size:11px;padding:4px 6px}
+.mob #mNav button i{font-style:normal;font-size:20px;line-height:1}
+.mob #mNav button.on{color:#fff;box-shadow:inset 0 3px 0 var(--acc,#2f9bff)}
+/* visor */
+.mob #stagebar{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:6px 8px;scrollbar-width:none}
+.mob #stagebar::-webkit-scrollbar{display:none}
+.mob #stagebar .row{flex-wrap:nowrap;flex:0 0 auto}
+.mob #stagebar button{white-space:nowrap;padding:6px 10px}
+.mob #stageInfoPill{display:none}
+.mob #stage{touch-action:none}
+.mob #cv{touch-action:none}
+.mob #transport{gap:6px;padding:6px 8px;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto}
+.mob #transport label{display:none!important}
+.mob #transport .ic{min-width:42px;min-height:40px}
+.mob #time{font-size:12px;margin-left:auto}
+/* timeline */
+.mob #tlbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;padding:6px 8px}
+.mob #tlbar::-webkit-scrollbar{display:none}
+.mob #tlbar button{white-space:nowrap;flex:0 0 auto}
+.mob #tlbar label{display:none!important}
+.mob #tlSplit{height:18px;top:-9px;touch-action:none}
+.mob #tlSplit::after{content:"";position:absolute;left:50%;top:7px;width:44px;height:4px;margin-left:-22px;border-radius:2px;background:#ffffff40}
+.mob #labels{width:54px;font-size:10px}
+.mob #tlscroll{touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
+.mob .clip{touch-action:pan-x pan-y}
+.mob .clip.sel{touch-action:none}
+.mob .clip.sel .h{width:18px!important;background:#ffffffaa}
+.mob #ruler{touch-action:none}
+.mob #bMulti.on{background:var(--acc,#2f9bff);color:#fff}
+/* ventanas */
+.mob .modal-box{width:94vw!important;max-height:86dvh;overflow:auto;padding:14px}
+/* Editor de Zoom en el celular */
+.mob .zr{height:100dvh}
+.mob .zrtop{gap:8px;padding:6px 8px}
+.mob .zrtop #zrInfo{display:none}
+.mob .zrtop label{font-size:12px}
+.mob .zrbar{flex-wrap:wrap;gap:6px;padding:6px 8px}
+.mob .zrbar button{padding:8px 12px}
+.mob #zrProg{flex:1 1 100%;order:9;height:26px;border-radius:13px}
+.mob #zrProg i{border-radius:13px}
+.mob #zrProg b{top:-4px;height:34px;width:10px;margin-left:-5px}
+.mob #zrTime{margin-left:auto}
+.mob .zrhint{font-size:11px;padding:4px 8px 8px}
+.mob #zrStage{touch-action:none}

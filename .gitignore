@@ -1,0 +1,4 @@
+# modelos de IA: se generan con models/sam2/INSTALAR IA.bat
+models/sam2/*.onnx
+models/sam2/*.json
+src/sam2.bundle.js.map

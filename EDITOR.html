@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EasterEgg Studio</title>
+<meta name="theme-color" content="#101012">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:#101012;color:#e4e4e7;font:15px/1.45 Inter,"Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:24px}
+h1{margin:0;font-size:15px;letter-spacing:.32em;font-weight:600;color:#8e8e96;text-transform:uppercase}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,300px));gap:20px;width:100%;max-width:960px}
+@media (max-width:860px){.cards{grid-template-columns:1fr}}
+a.card.sh{border-color:#ffd16666;background:linear-gradient(160deg,#2e2614,#1c1c1e 60%)}
+.sh .tag{background:#ffd166;color:#1f1700}
+a.card.sh:hover{border-color:#ffd166}
+a.card{display:flex;flex-direction:column;gap:10px;padding:28px 26px 24px;border-radius:14px;text-decoration:none;color:inherit;background:#1c1c1e;border:1px solid #323237;transition:transform .15s,border-color .15s,background .15s;min-height:230px}
+a.card:hover,a.card:focus-visible{transform:translateY(-4px);border-color:#2f9bff;background:#202024;outline:none}
+a.card.pro{border-color:#2f9bff66;background:linear-gradient(160deg,#16263a,#1c1c1e 60%)}
+.tag{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.14em;padding:3px 9px;border-radius:99px;background:#2c2c30;color:#b9b9c2}
+.pro .tag{background:#2f9bff;color:#06121f}
+.name{font-size:34px;font-weight:800;letter-spacing:.02em;margin-top:4px}
+.desc{color:#a3a3ad;font-size:14px;flex:1}
+.go{font-weight:600;color:#6cc0ff;font-size:14px}
+kbd{background:#2c2c30;border:1px solid #3a3a40;border-bottom-width:2px;border-radius:5px;padding:0 6px;font:12px ui-monospace,Consolas,monospace;color:#b9b9c2}
+.pconly{color:#8e8e96;font-style:normal}
+@media (pointer:coarse){body{justify-content:flex-start;gap:18px}a.card{min-height:0;padding:18px}.name{font-size:26px}footer{display:none}}
+footer{color:#6b6b74;font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+<h1>EasterEgg Studio</h1>
+<div class="cards">
+  <a class="card pro" href="PRO.html" id="pro">
+    <span class="tag">NUEVO</span>
+    <span class="name">PRO</span>
+    <span class="desc">Interfaz nueva, filtros de color desde una imagen, selección de varios clips, exportación sin saltos y ULTIMATE UPSCALER.</span>
+    <span class="go">Abrir PRO →</span>
+  </a>
+  <a class="card sh" href="PRO.html?mode=shorts" id="shorts">
+    <span class="tag">VERTICAL</span>
+    <span class="name">SHORTS</span>
+    <span class="desc">El editor PRO listo para TikTok, Reels y Shorts: 9:16, guía paso a paso, zoom con puntero, voz y subtítulos del guion.</span>
+    <span class="go">Abrir SHORTS →</span>
+  </a>
+  <a class="card" href="LEGACY.html" id="legacy">
+    <span class="tag">ORIGINAL</span>
+    <span class="name">LEGACY</span>
+    <span class="desc">Tu editor tal como lo dejaste. Mismo archivo, sin ningún cambio. <i class="pconly">Pensado para PC.</i></span>
+    <span class="go">Abrir LEGACY →</span>
+  </a>
+</div>
+<footer>Atajos: <kbd>1</kbd> PRO · <kbd>2</kbd> SHORTS · <kbd>3</kbd> LEGACY &nbsp;·&nbsp; Ábrelo con Chrome o Edge</footer>
+<script>
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+addEventListener('keydown',e=>{if(e.key==='1')location.href='PRO.html';if(e.key==='2')location.href='PRO.html?mode=shorts';if(e.key==='3')location.href='LEGACY.html'});
+</script>
+</body>
+</html>

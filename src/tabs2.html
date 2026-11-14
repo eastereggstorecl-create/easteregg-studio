@@ -1,0 +1,33 @@
+    <!-- TAB SHORTS (solo en modo SHORTS) -->
+    <div class="tabpane" id="tab-short">
+      <h4><span>Tu Short paso a paso</span></h4>
+      <button class="big2" data-go="media"><b>1 · Trae tu gameplay</b><small>Importa los clips y ponlos en el timeline.</small></button>
+      <button class="big2" data-go="zoomrec"><b>2 · Graba el zoom y el puntero</b><small>Abre el Editor de Zoom: haces zoom con la rueda y apuntas con el huevito mientras se reproduce.</small></button>
+      <button class="big2" data-go="audio"><b>3 · Tu voz</b><small>Graba en vivo o importa el archivo; quita silencios, sube el volumen y límpiala.</small></button>
+      <button class="big2" data-go="text"><b>4 · Subtítulos del guion</b><small>Pega el guion y se calzan solos con tu voz, palabra por palabra.</small></button>
+      <button class="big2" data-go="look"><b>5 · Color</b><small>Un filtro de cine o el color de una imagen que te guste.</small></button>
+      <button class="big2 pri" data-go="export"><b>6 · Exportar</b><small>Vertical, listo para TikTok, Reels y YouTube Shorts.</small></button>
+      <div class="hint" style="margin-top:6px">Todas estas herramientas también están en el editor PRO normal, para videos horizontales.</div>
+    </div>
+
+    <!-- TAB VOZ -->
+    <div class="tabpane" id="tab-audio">
+      <h4><span>🎙 Grabar voz</span></h4>
+      <div class="fld"><label>Micrófono</label><select id="micSel" style="width:100%"><option value="">Micrófono predeterminado de Windows</option></select></div>
+      <label class="chk"><input type="checkbox" id="recPlay" checked> Reproducir el video mientras grabo (usa audífonos)</label>
+      <button id="bRec" class="big2 warn"><b>● Grabar</b><small>Empieza en el cursor rojo. La voz queda en la pista Audio 1.</small></button>
+      <div class="meter"><i id="micLvl"></i></div>
+      <div id="recInfo" class="hint" style="min-height:16px;margin-bottom:6px"></div>
+      <div class="hint" style="margin-bottom:8px">¿Ya tienes el audio? Impórtalo en <b>Media</b> como cualquier archivo y arrástralo a una pista de audio.</div>
+
+      <h4><span>🎚 Arreglar la voz</span></h4>
+      <div class="hint" style="margin-bottom:7px">Selecciona el clip de voz en el timeline y usa:</div>
+      <div class="row">
+        <button id="bNorm" style="flex:1" title="Calcula el volumen ideal: fuerte pero sin saturar">🔊 Subir volumen</button>
+        <button id="bClean" style="flex:1" title="Quita ruido grave (aire, golpes en la mesa) y empareja la voz. Púlsalo otra vez para quitarlo.">✨ Limpiar voz</button>
+      </div>
+      <button id="bSil" style="width:100%;margin-bottom:8px" title="Corta las pausas largas y junta lo que queda">✂ Quitar silencios</button>
+      <div class="fld"><label>Silencio mínimo a quitar<span id="silLbl">0.50 s</span></label><input type="range" id="silMin" min="0.2" max="1.5" step="0.05" value="0.5"></div>
+      <div class="hint">Para cortar a mano: pon el cursor rojo y pulsa <kbd>S</kbd>, luego <kbd>Shift</kbd>+<kbd>Supr</kbd> borra el trozo y cierra el hueco.</div>
+    </div>
+

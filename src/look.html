@@ -1,0 +1,37 @@
+    <!-- TAB LOOK (PRO) -->
+    <div class="tabpane" id="tab-look">
+      <h4><span>1 · Imágenes de referencia</span></h4>
+      <div id="refDrop" class="pdrop">
+        Suelta aquí una foto o fotograma con el color que te gusta
+        <button id="bRefAdd" class="pri">+ Añadir imágenes</button>
+      </div>
+      <div id="refGrid" class="pgrid"></div>
+      <div id="refActions" style="display:none">
+        <div class="refhead"><span id="refName"></span><div id="refPal" class="pal"></div></div>
+        <button id="bMkLook" class="big2 pri"><b>✨ Crear filtro</b><small>Guarda el color de esta imagen como filtro. Lo usas en cualquier video, cuando quieras.</small></button>
+        <button id="bMatch" class="big2"><b>🎯 Calzar en vivo</b><small>Analiza tu clip y lo ajusta para que se parezca lo más posible a esta imagen.</small></button>
+      </div>
+
+      <h4><span>2 · Filtros</span><button id="bLookRefresh" class="mini" title="Actualizar las miniaturas con el fotograma actual">↻</button></h4>
+      <div id="lookNow" class="hint now"></div>
+      <div id="lookGrid" class="pgrid looks"></div>
+
+      <h4><span>3 · Ajustar</span></h4>
+      <div id="gradeBox"></div>
+      <div class="row">
+        <button id="bEqualize" style="flex:1" title="Selecciona varios clips: les empareja la luz y les copia el filtro y los ajustes del clip principal (el último que tocaste)">⚖ Igualar clips</button>
+        <button id="bApplyAll2" title="Copia los efectos de este clip a todo el video">⇉ Aplicar a todo</button>
+        <button id="bLookOff" title="Quita el filtro y todos los ajustes de color del clip">Quitar color</button>
+      </div>
+      <button id="bMore" class="morebtn">Más controles ▾</button>
+      <div id="gradeMore" style="display:none">
+        <div id="gradeMoreBox"></div>
+        <div class="row tones">
+          <label>Color de sombras <input type="color" id="shC" value="#808080"></label>
+          <label>Color de luces <input type="color" id="hiC" value="#808080"></label>
+        </div>
+        <div class="hint" style="margin:6px 0 4px">Gráfico de luz: izquierda = oscuro, derecha = claro. Si se pega a un borde, estás perdiendo detalle.</div>
+        <canvas id="scope" width="300" height="70"></canvas>
+      </div>
+    </div>
+

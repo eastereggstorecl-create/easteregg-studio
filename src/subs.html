@@ -1,0 +1,23 @@
+      <h4><span>💬 Subtítulos desde un guion</span></h4>
+      <textarea id="subScript" rows="6" style="width:100%;resize:vertical;margin-bottom:6px" placeholder="Pega aquí tu guion, tal como lo vas a decir…"></textarea>
+      <div class="row">
+        <label class="hint" style="flex:1">Estilo
+          <select id="subStyle" style="width:100%"><option value="karaoke">Palabra resaltada</option><option value="frase">Frase simple</option><option value="caja">Con caja negra</option></select></label>
+        <label class="hint" style="width:70px">Palabras<input id="subWords" type="number" min="1" max="10" value="5" style="width:100%"></label>
+      </div>
+      <div class="row">
+        <label class="hint" style="flex:1">Fuente
+          <select id="subFont" style="width:100%"><option>Inter</option><option>Anton</option><option>Permanent Marker</option><option>Special Elite</option><option>VT323</option></select></label>
+        <label class="hint">Resaltado <input type="color" id="subHi" value="#ffd400"></label>
+        <label class="hint chk"><input type="checkbox" id="subUpper" checked> MAYÚS</label>
+      </div>
+      <div class="fld"><label>Altura en pantalla</label><input type="range" id="subPos" min="-45" max="45" step="1" value="30"></div>
+      <button id="bSubAuto" class="big2 pri"><b>🤖 Sincronizar con mi voz</b><small>Escucha tu audio y calza cada palabra del guion. Gratis y en tu PC. La 1ª vez descarga el modelo (~290 MB, una sola vez).</small></button>
+      <div class="row">
+        <button id="bSubTap" style="flex:1" title="Reproduce y tú tocas la tecla K cuando empieza cada frase">✋ A mano (tecla K)</button>
+        <button id="bSubEven" style="flex:1" title="Reparte las frases parejo a lo largo del audio">⇔ Repartir parejo</button>
+        <button id="bSubDel" title="Quita todos los subtítulos">🗑</button>
+      </div>
+      <div id="subStatus" class="hint now" style="min-height:18px"></div>
+      <div class="hint" style="margin-bottom:12px">Usa el clip de voz seleccionado; si no hay ninguno, usa todo el audio. Cada frase queda como un texto en la pista Texto 2: puedes moverla, estirarla o corregir la palabra.</div>
+      <h4><span>Textos sueltos</span></h4>

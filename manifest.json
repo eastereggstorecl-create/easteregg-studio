@@ -1,0 +1,16 @@
+{
+  "name": "EasterEgg Studio",
+  "short_name": "EasterEgg",
+  "description": "Editor de video PRO y SHORTS",
+  "start_url": "./EDITOR.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#101012",
+  "theme_color": "#101012",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

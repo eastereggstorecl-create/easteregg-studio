@@ -1,0 +1,22 @@
+MÁSCARA AUTOMÁTICA CON IA (SAM 2.1)
+===================================
+
+La IA que recorta y sigue objetos necesita sus archivos de modelo en esta carpeta.
+Se instalan una sola vez:
+
+  1. Haz doble clic en «INSTALAR IA.bat» (en esta misma carpeta).
+  2. Espera a que termine (descarga ~150 MB y prepara los archivos).
+  3. Recarga el editor (F5).
+
+Archivos que quedan aquí:
+  constants_512.json
+  image_encoder_512.int8.onnx
+  sam_head_512.onnx
+  memory_encoder_512.onnx
+  memory_attention_512.onnx
+  object_pointer.onnx
+  object_pointer_tpos.onnx
+
+Créditos y licencias:
+  - Modelo SAM 2.1 Hiera-Tiny: Meta AI, licencia Apache-2.0.
+  - Exportación y motor para navegador: github.com/smurley6/sam2-from-scratch, licencia Apache-2.0.
