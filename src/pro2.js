@@ -72,10 +72,10 @@ async function capture(){
     }
   }
   const ex=S.exporting,bp=S.bypass,cm=cmp;
-  S.exporting=true;S.bypass=!!raw;cmp=false;
+  S.exporting=true;S.bypass=!!raw;cmp=false;setSize();
   renderFrame();
   const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
-  S.exporting=ex;S.bypass=bp;cmp=cm;renderFrame();
+  S.exporting=ex;S.bypass=bp;cmp=cm;setSize();renderFrame();
   if(!blob)return toast('No pude capturar el fotograma.');
   const name=`${safeName()}_${fmt(S.t).replace(':','m').replace('.','s')}${raw?'_original':''}.png`;
   const th=document.createElement('canvas'),k=150/Math.max(S.w,S.h);th.width=Math.round(S.w*k);th.height=Math.round(S.h*k);

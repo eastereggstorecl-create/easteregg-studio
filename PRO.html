@@ -1657,6 +1657,7 @@ var SAM2 = (() => {
       <option value="1080">1080p Full HD</option>
       <option value="1440" selected>1440p 2K QHD</option>
       <option value="2160">2160p 4K UHD</option>
+      <option value="n">⭐ Nativa (igual al video)</option>
     </select></label>
     <label>FPS <select id="fps"><option value="30">30 fps</option><option value="60" selected>60 fps</option></select></label>
     <label>Upscaler <select id="upscaleMode" title="Mejora de resolución y nitidez en tiempo real y exportación">
@@ -2083,6 +2084,7 @@ var SAM2 = (() => {
     <div class="fld">
       <label>Bitrate / Calidad de Video</label>
       <select id="qual" style="width:100%;padding:6px">
+        <option value="120000000">🏆 Máxima nativa (~120 Mbps · para 4K sin perder nada)</option>
         <option value="65000000" selected>💎 Master Lossless-Like (~65 Mbps · Sin compresión visible)</option>
         <option value="35000000">🔥 Ultra Pro 2K/4K (~35 Mbps)</option>
         <option value="18000000">✨ Alta Calidad (~18 Mbps)</option>
@@ -2725,6 +2727,7 @@ function setSize(){
   if(a==='16:9'){h=r;w=Math.round(r*16/9)}else if(a==='9:16'){w=r;h=Math.round(r*16/9)}else if(a==='1:1'){w=h=r}else{w=r;h=Math.round(r*5/4)}
   // Asegurar dimensiones pares para encoders H.264 / VP9
   w=Math.round(w/2)*2;h=Math.round(h/2)*2;
+  {const pv=PRO.prevCap&&!S.exporting?PRO.prevCap():0,sh=Math.min(w,h);if(pv&&pv<sh){const k=pv/sh;w=Math.round(w*k/2)*2;h=Math.round(h*k/2)*2}}
   S.w=w;S.h=h;cv.width=w;cv.height=h;
   cx.imageSmoothingEnabled=true;
   cx.imageSmoothingQuality='high';
@@ -4210,7 +4213,7 @@ async function doExport(){
       await new Promise(r=>setTimeout(r,15));
       const outBuf=LosslessMp4Cutter.remuxSegments(segments);
       $('#exBar').style.width='100%';
-      S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;
+      S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;setSize();
       $('#exportModal').style.display='none';
       const blob=new Blob([outBuf],{type:'video/mp4'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -4403,7 +4406,7 @@ async function doExport(){
     }
     FS.close();try{await vEnc.flush();vEnc.close()}catch(e){PRO.encErr=PRO.encErr||e}
     const buf=usingInlineMux?muxer.finalize():(muxer.finalize(),muxer.target.buffer);
-    S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;
+    S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;setSize();
     $('#exportModal').style.display='none';
     if(PRO.encErr){const _m=PRO.encErr.message||PRO.encErr;PRO.encErr=null;seek(0);renderAll();toast('El codificador de video falló ('+_m+'). Prueba con una resolución menor o con «Grabación en vivo».',10000);return}if(exCancel){toast('Exportación cancelada.');return}
     const ext=useMp4?'mp4':'webm';
@@ -4514,7 +4517,7 @@ async function doExport(){
 
     if(rec&&rec.state!=='inactive')rec.stop();
     await done;
-    spk.gain.value=1;S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;pause();
+    spk.gain.value=1;S.upscale=oldUp;S.upMode=oldMode;S.exporting=false;setSize();pause();
     $('#exportModal').style.display='none';
     if(PRO.encErr){const _m=PRO.encErr.message||PRO.encErr;PRO.encErr=null;seek(0);renderAll();toast('El codificador de video falló ('+_m+'). Prueba con una resolución menor o con «Grabación en vivo».',10000);return}if(exCancel){toast('Exportación cancelada.');return}
     const ext=mime.includes('mp4')?'mp4':'webm';
@@ -4531,13 +4534,13 @@ $('#exCancel').onclick=()=>{exCancel=true;onEnd=null;pause();if(rec&&rec.state!=
 /* ---------- EVENTOS DE UI Y CONTROLES NUEVOS ---------- */
 function renderAll(){renderTimeline();renderInspector();renderFrame();drawSpeedGraph();drawZoomGraph()}
 function syncUI(){
-  $('#aspect').value=S.aspect;$('#res').value=S.res;$('#fps').value=S.fps||60;
+  $('#aspect').value=S.aspect;$('#res').value=S.resNative||![720,1080,1440,2160].includes(+S.res)?'n':S.res;$('#fps').value=S.fps||60;
   $('#upscaleMode').value=S.upMode==='ultimate'?'ultimate':String(S.upscale??0.35);
   $('#rngSharp').value=S.upscale??0.35;$('#lblSharp').textContent=Math.round((S.upscale??0.35)*100)+'%';
   $('#bpm').value=S.bpm;$('#boff').value=S.off;$('#pname').value=S.name;
 }
 $('#aspect').onchange=e=>{S.aspect=e.target.value;setSize();commit();renderAll()};
-$('#res').onchange=e=>{S.res=+e.target.value;setSize();commit();renderAll()};
+$('#res').onchange=e=>PRO.resChange(e.target.value);
 $('#fps').onchange=e=>{S.fps=+e.target.value;updateStagePill();commit()};
 $('#upscaleMode').onchange=e=>{if(e.target.value==='ultimate'){S.upMode='ultimate';S.upscale=0.3}else{S.upMode='cas';S.upscale=+e.target.value}syncUI();updateStagePill();renderFrame();commit()};
 $('#rngSharp').oninput=e=>{S.upscale=+e.target.value;$('#lblSharp').textContent=Math.round(S.upscale*100)+'%';updateStagePill();renderFrame()};
@@ -5590,10 +5593,10 @@ async function capture(){
     }
   }
   const ex=S.exporting,bp=S.bypass,cm=cmp;
-  S.exporting=true;S.bypass=!!raw;cmp=false;
+  S.exporting=true;S.bypass=!!raw;cmp=false;setSize();
   renderFrame();
   const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
-  S.exporting=ex;S.bypass=bp;cmp=cm;renderFrame();
+  S.exporting=ex;S.bypass=bp;cmp=cm;setSize();renderFrame();
   if(!blob)return toast('No pude capturar el fotograma.');
   const name=`${safeName()}_${fmt(S.t).replace(':','m').replace('.','s')}${raw?'_original':''}.png`;
   const th=document.createElement('canvas'),k=150/Math.max(S.w,S.h);th.width=Math.round(S.w*k);th.height=Math.round(S.h*k);
@@ -6551,8 +6554,47 @@ function wireScrub(){
     S.sel=null;MS.clear();renderAll();scrub(e);
   },true);
 }
+/* ------------------------------------------------------------------
+   VISTA PREVIA LIVIANA: el visor se dibuja más chico, la exportación sale completa
+   ------------------------------------------------------------------ */
+const PREV_KEY='ee-pro-prev';
+PRO.prevCap=()=>{const v=LSg(PREV_KEY,MOB?720:0);return +v||0};
+function wirePrev(){
+  const res=$('#res');if(!res)return;
+  const l=document.createElement('label');l.title='Solo cambia lo que ves mientras editas. La exportación sale a la resolución elegida en «Resolución».';
+  l.innerHTML=`Vista previa <select id="prevRes"><option value="0">Completa</option><option value="1080">1080p</option><option value="720">720p</option><option value="540">540p (más rápida)</option></select>`;
+  res.parentElement.after(l);
+  const sel=$('#prevRes');sel.value=String(PRO.prevCap());
+  sel.onchange=()=>{try{localStorage.setItem(PREV_KEY,JSON.stringify(+sel.value))}catch(_){}
+    setSize();renderAll();
+    toast(+sel.value?`Vista previa a ${sel.value}p: el editor va más liviano. Al exportar sale a ${S.w>S.h?'la resolución completa':'resolución completa'} igual.`:'Vista previa completa.',5000)};
+  // en el celular el menú de Proyecto ya existe: mover el selector ahí
+  if(MOB&&$('#mProj'))$('#mProj').insertBefore(l,$('#mProj').querySelector('.hint'));
+}
+/* ------------------------------------------------------------------
+   RESOLUCIÓN NATIVA: la del video más grande del proyecto
+   ------------------------------------------------------------------ */
+function nativeOf(){
+  let best=null;
+  const used=new Set(S.clips.filter(c=>c.type==='video').map(c=>c.mediaId));
+  M.forEach((m,id)=>{if(m.type!=='video'||!m.w||!m.h)return;if(used.size&&!used.has(id))return;if(!best||m.w*m.h>best.w*best.h)best=m});
+  return best;
+}
+function nativeLabel(){const o=$('#res option[value=n]');if(!o)return;const m=nativeOf();o.textContent=m?`⭐ Nativa (${m.w}×${m.h})`:'⭐ Nativa (igual al video)'}
+PRO.resChange=v=>{
+  if(v==='n'){
+    const m=nativeOf();if(!m){toast('Pon primero un video en el timeline.');$('#res').value=String(S.res);return}
+    S.res=Math.min(m.w,m.h);S.resNative=true;
+    // el formato sigue al video si es horizontal o vertical
+    const ar=m.w/m.h;const asp=Math.abs(ar-16/9)<.03?'16:9':Math.abs(ar-9/16)<.03?'9:16':Math.abs(ar-1)<.03?'1:1':Math.abs(ar-.8)<.03?'4:5':null;
+    if(asp&&asp!==S.aspect){S.aspect=asp;$('#aspect').value=asp}
+    toast(`Resolución nativa: ${m.w}×${m.h}, igual a tu video. Para que no pierda nada, en Exportar elige «🏆 Máxima nativa».`,8000);
+  }else{S.res=+v;S.resNative=false}
+  setSize();commit();renderAll();nativeLabel();
+};
 PRO.init3=()=>{
-  wireSpeed();wireScrub();
+  wireSpeed();wireScrub();wirePrev();nativeLabel();setSize();
+  $('#res').addEventListener('focus',nativeLabel);$('#res').addEventListener('pointerdown',nativeLabel);
   requestAnimationFrame(loop);
   PRO.initFx3&&PRO.initFx3();
 };

@@ -146,8 +146,47 @@ function wireScrub(){
     S.sel=null;MS.clear();renderAll();scrub(e);
   },true);
 }
+/* ------------------------------------------------------------------
+   VISTA PREVIA LIVIANA: el visor se dibuja más chico, la exportación sale completa
+   ------------------------------------------------------------------ */
+const PREV_KEY='ee-pro-prev';
+PRO.prevCap=()=>{const v=LSg(PREV_KEY,MOB?720:0);return +v||0};
+function wirePrev(){
+  const res=$('#res');if(!res)return;
+  const l=document.createElement('label');l.title='Solo cambia lo que ves mientras editas. La exportación sale a la resolución elegida en «Resolución».';
+  l.innerHTML=`Vista previa <select id="prevRes"><option value="0">Completa</option><option value="1080">1080p</option><option value="720">720p</option><option value="540">540p (más rápida)</option></select>`;
+  res.parentElement.after(l);
+  const sel=$('#prevRes');sel.value=String(PRO.prevCap());
+  sel.onchange=()=>{try{localStorage.setItem(PREV_KEY,JSON.stringify(+sel.value))}catch(_){}
+    setSize();renderAll();
+    toast(+sel.value?`Vista previa a ${sel.value}p: el editor va más liviano. Al exportar sale a ${S.w>S.h?'la resolución completa':'resolución completa'} igual.`:'Vista previa completa.',5000)};
+  // en el celular el menú de Proyecto ya existe: mover el selector ahí
+  if(MOB&&$('#mProj'))$('#mProj').insertBefore(l,$('#mProj').querySelector('.hint'));
+}
+/* ------------------------------------------------------------------
+   RESOLUCIÓN NATIVA: la del video más grande del proyecto
+   ------------------------------------------------------------------ */
+function nativeOf(){
+  let best=null;
+  const used=new Set(S.clips.filter(c=>c.type==='video').map(c=>c.mediaId));
+  M.forEach((m,id)=>{if(m.type!=='video'||!m.w||!m.h)return;if(used.size&&!used.has(id))return;if(!best||m.w*m.h>best.w*best.h)best=m});
+  return best;
+}
+function nativeLabel(){const o=$('#res option[value=n]');if(!o)return;const m=nativeOf();o.textContent=m?`⭐ Nativa (${m.w}×${m.h})`:'⭐ Nativa (igual al video)'}
+PRO.resChange=v=>{
+  if(v==='n'){
+    const m=nativeOf();if(!m){toast('Pon primero un video en el timeline.');$('#res').value=String(S.res);return}
+    S.res=Math.min(m.w,m.h);S.resNative=true;
+    // el formato sigue al video si es horizontal o vertical
+    const ar=m.w/m.h;const asp=Math.abs(ar-16/9)<.03?'16:9':Math.abs(ar-9/16)<.03?'9:16':Math.abs(ar-1)<.03?'1:1':Math.abs(ar-.8)<.03?'4:5':null;
+    if(asp&&asp!==S.aspect){S.aspect=asp;$('#aspect').value=asp}
+    toast(`Resolución nativa: ${m.w}×${m.h}, igual a tu video. Para que no pierda nada, en Exportar elige «🏆 Máxima nativa».`,8000);
+  }else{S.res=+v;S.resNative=false}
+  setSize();commit();renderAll();nativeLabel();
+};
 PRO.init3=()=>{
-  wireSpeed();wireScrub();
+  wireSpeed();wireScrub();wirePrev();nativeLabel();setSize();
+  $('#res').addEventListener('focus',nativeLabel);$('#res').addEventListener('pointerdown',nativeLabel);
   requestAnimationFrame(loop);
   PRO.initFx3&&PRO.initFx3();
 };
