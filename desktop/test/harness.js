@@ -31,6 +31,20 @@ module.exports=async function(win,port){
       const sz=fs.statSync(r.file).size;
       R.proxies.push({file:path.basename(f),enc:r.enc,secs:+((Date.now()-t)/1000).toFixed(1),mb:+(sz/1e6).toFixed(1)});log('proxy',JSON.stringify(R.proxies.at(-1)));
     }
+    if(process.env.EE_SEEKTEST){
+      R.seek=await js(`(async()=>{const m=[...__EE.M.values()].find(x=>x.nativePath===${JSON.stringify(files[0])});const out={};
+        const pos=[];let x=7;for(let i=0;i<12;i++){x=(x*9301+49297)%233280;pos.push(5+(x/233280)*(Math.min(m.dur,200)-10))}
+        for(const [k,u] of [['original',m.url],['proxy',m.proxyUrl]]){if(!u)continue;const v=document.createElement('video');v.muted=true;v.preload='auto';v.src=u;
+          await new Promise(r=>{v.onloadeddata=r;setTimeout(r,15000)});const ts=[];
+          for(const p of pos){const t0=performance.now();v.currentTime=p;await new Promise(r=>{v.onseeked=r;setTimeout(r,8000)});ts.push(performance.now()-t0)}
+          ts.sort((a,b)=>a-b);out[k]={medianaMs:Math.round(ts[6]),peorMs:Math.round(ts[11])};v.src=''}
+        return out})()`);
+      log('saltos',JSON.stringify(R.seek));
+      const F=require('ffmpeg-static');const px=(await js(`eeNative.proxyCached(${JSON.stringify(files[0])})`)).file;
+      const kf=spawnSync(F,['-hide_banner','-skip_frame','nokey','-i',px,'-t','10','-vf','showinfo','-f','null','-'],{encoding:'utf8'}).stderr.split(String.fromCharCode(10)).filter(l=>/showinfo.*n:/.test(l)).length;
+      R.keyframesEn10s=kf;log('fotogramas clave del proxy en 10 s:',kf);
+      fs.writeFileSync(path.join(out,'resultado.json'),JSON.stringify(R,null,1));return app.exit(0);
+    }
     log('paso: timeline');
     // timeline: primer video, recortado a [from, from+secs]
     await js(`(()=>{const m=[...__EE.M.values()].find(x=>x.nativePath===${JSON.stringify(files[0])});__EE.S.clips.length=0;__EE.addMediaClip(m.id,'V1',0);const c=__EE.S.clips[0];c.in=Math.min(${from},Math.max(0,m.dur-${secs}-1));c.dur=${secs};__EE.renderAll&&0;return c.in})()`);

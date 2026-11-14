@@ -15,7 +15,7 @@ function writeCfg(c){fs.mkdirSync(path.dirname(CFG()),{recursive:true});fs.write
 const defCache=()=>path.join(app.getPath('userData'),'ee-cache');
 function cacheDir(){const c=readCfg().cacheDir;let d=c||defCache();try{fs.mkdirSync(d,{recursive:true})}catch(e){d=defCache();fs.mkdirSync(d,{recursive:true})}return d}
 function dirSize(d){let n=0;try{for(const f of fs.readdirSync(d)){try{const st=fs.statSync(path.join(d,f));if(st.isFile())n+=st.size}catch(e){}}}catch(e){}return n}
-function clearDir(d){let n=0;try{for(const f of fs.readdirSync(d))if(/^(px-|au-|tmp-)/.test(f)){try{n+=fs.statSync(path.join(d,f)).size;fs.unlinkSync(path.join(d,f))}catch(e){}}}catch(e){}return n}
+function clearDir(d){let n=0;try{for(const f of fs.readdirSync(d))if(/^(px\d*-|au-|tmp-)/.test(f)){try{n+=fs.statSync(path.join(d,f)).size;fs.unlinkSync(path.join(d,f))}catch(e){}}}catch(e){}return n}
 const MBs=b=>b>1e9?(b/1e9).toFixed(1)+' GB':Math.round(b/1e6)+' MB';
 async function settings(){
   for(;;){
@@ -96,7 +96,8 @@ function detectEncoders(){
 }
 const GPU_NAME={h264_nvenc:'NVIDIA (NVENC)',h264_qsv:'Intel (QuickSync)',h264_amf:'AMD (AMF)',libx264:'procesador (CPU)'};
 function vArgs(enc,{bitrate,fps,fast}){
-  const br=Math.round(bitrate),g=String(Math.round(fps||30)*(fast?1:2));
+  // proxies: un fotograma clave cada 0,25 s para saltar rápido al arrastrar la línea azul
+  const br=Math.round(bitrate),g=String(fast?Math.max(1,Math.round((fps||30)/4)):Math.round(fps||30)*2);
   if(enc==='h264_nvenc')return ['-c:v','h264_nvenc','-preset',fast?'p2':'p5','-rc','vbr','-b:v',br,'-maxrate',Math.round(br*1.5),'-bufsize',br*2,'-profile:v','high','-g',g,'-bf',fast?'0':'2'];
   if(enc==='h264_qsv')return ['-c:v','h264_qsv','-preset',fast?'veryfast':'medium','-b:v',br,'-maxrate',Math.round(br*1.5),'-g',g];
   if(enc==='h264_amf')return ['-c:v','h264_amf','-quality',fast?'speed':'quality','-rc','vbr_peak','-b:v',br,'-maxrate',Math.round(br*1.5),'-g',g];
@@ -105,7 +106,7 @@ function vArgs(enc,{bitrate,fps,fast}){
 
 /* ---------- proxy 720p ---------- */
 function prog(job,frac,info){if(win&&!win.isDestroyed()&&job)win.webContents.send('ee:progress',job,frac,info||{})}
-function proxyFile(p){return path.join(cacheDir(),'px-'+keyOf(p)+'.mp4')}
+function proxyFile(p){return path.join(cacheDir(),'px2-'+keyOf(p)+'.mp4')} // px2: versión con fotogramas clave cada 0,25 s
 async function makeProxy({path:p,job}){
   const out=proxyFile(p);if(fs.existsSync(out))return {url:urlOf(out),file:out,cached:true};
   const info=await probe(p),encs=await detectEncoders();
@@ -119,7 +120,7 @@ async function makeProxy({path:p,job}){
   for(const enc of [encs[0],'libx264'].filter((e,i,a)=>a.indexOf(e)===i))tries.push({enc,pre:['-hwaccel','auto'],vf:scale+',format=yuv420p'});
   for(const {enc,pre,vf} of tries){
     const args=['-y','-hide_banner','-loglevel','error','-nostats','-progress','pipe:1',...pre,'-i',p,
-      '-map','0:v:0','-map','0:a:0?','-vf',vf,...vArgs(enc,{bitrate:5e6,fps:info.fps||30,fast:true}),
+      '-map','0:v:0','-map','0:a:0?','-vf',vf,...vArgs(enc,{bitrate:6e6,fps:info.fps||30,fast:true}),
       '-c:a','aac','-b:a','128k','-ac','2','-movflags','+faststart',tmp];
     const {done}=run(args,{onLine:l=>{const m=/^out_time_us=(\d+)/.exec(l);if(m&&info.dur)prog(job,Math.min(1,+m[1]/1e6/info.dur),{enc:GPU_NAME[enc],secs:(Date.now()-t0)/1000})}});
     last=await done;
@@ -239,7 +240,8 @@ function register(w){
   H('ee:reveal',p=>shell.showItemInFolder(p));
   detectEncoders();
   // limpia temporales de exportaciones anteriores
-  try{for(const f of fs.readdirSync(cacheDir()))if(/^tmp-|\.part\./.test(f))fs.unlinkSync(path.join(cacheDir(),f))}catch(e){}
+  try{for(const f of fs.readdirSync(cacheDir()))if(/^tmp-|^px-|\.part\./.test(f)) // px-: proxies viejos (se rehacen como px2-)
+fs.unlinkSync(path.join(cacheDir(),f))}catch(e){}
 }
 function killAll(){for(const pr of running)try{pr.kill()}catch(e){}}
 module.exports={register,killAll,cacheDir,readCfg,setBase:b=>{BASE=b},probe,detectEncoders,makeProxy,frOpen,frRead,frClose,encOpen,encWrite,encClose};

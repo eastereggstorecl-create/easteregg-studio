@@ -7,7 +7,8 @@ const PX={busy:false,cancel:false,db:null};
 const big=m=>m&&m.type==='video'&&m.w&&Math.min(m.w,m.h)>1100;
 const keyOf=m=>m.file?`${m.name}|${m.file.size}|${m.file.lastModified}`:null;
 /* el visor usa proxies cuando «Vista previa» no está en «Completa» */
-PRO.pxOn=m=>!!(m&&m.proxyUrl&&!S.exporting&&PRO.prevCap&&PRO.prevCap()>0);
+/* y también mientras arrastras la línea azul (PRO.scrub): saltar en la copia liviana es mucho más rápido */
+PRO.pxOn=m=>!!(m&&m.proxyUrl&&!S.exporting&&(PRO.scrub||PRO.prevCap&&PRO.prevCap()>0));
 /* video del proxy (sin sonido) + audio del original en un elemento solo de audio (no decodifica la imagen 4K) */
 PRO.pxAudio=(v,m)=>{
   const a=document.createElement('audio');a.src=m.url;a.preload='auto';
@@ -60,7 +61,7 @@ async function makeProxy(m,onProg){
     const ts=Math.round(mt*1e6);
     if(ts>lastTs){
       g.drawImage(v,0,0,W,H);
-      const fr=new VideoFrame(cv2,{timestamp:ts});const key=mt-lastKey>=1;if(key)lastKey=mt;
+      const fr=new VideoFrame(cv2,{timestamp:ts});const key=mt-lastKey>=.25;if(key)lastKey=mt;
       enc.encode(fr,{keyFrame:key});fr.close();lastTs=ts;frames++;
     }
     // velocidad adaptable: más rápido si alcanza a captar ~24 fotogramas por segundo de video

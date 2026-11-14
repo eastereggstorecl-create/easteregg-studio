@@ -130,14 +130,28 @@ function wireSpeed(){
 function loop(){try{speedTick()}catch(e){console.error(e)}requestAnimationFrame(loop)}
 
 /* la línea de tiempo se arrastra: desde la línea misma, la regla o el espacio vacío del timeline */
+/* al soltar: el original busca el cuadro exacto mientras se sigue viendo el proxy; cuando está listo, se cambia */
+function scrubSettle(){
+  const tok=PRO._scrubTok=(PRO._scrubTok||0)+1;
+  PRO.scrub=false;syncMedia();
+  const els=S.clips.filter(c=>(c.type==='video')&&active(c,S.t)).map(getEl).filter(el=>el&&el.seeking);
+  PRO.scrub=true;renderFrame();
+  if(!els.length){PRO.scrub=false;return renderFrame()}
+  let left=els.length;
+  const fin=()=>{if(PRO._scrubTok!==tok)return;PRO.scrub=false;renderFrame()};
+  els.forEach(el=>el.addEventListener('seeked',()=>{if(--left<=0)fin()},{once:true}));
+  setTimeout(fin,2500);
+}
 function wireScrub(){
   const tin=$('#tlin'),ph=$('#ph');
   const scrub=e=>{
     e.preventDefault();e.stopPropagation();
     const wasPlaying=S.playing;if(wasPlaying)pause();
+    PRO.scrub=true;
     const go=ev=>{const r=tin.getBoundingClientRect();seek(clamp((ev.clientX-r.left)/S.pps,0,Math.max(total(),.01)))};
     go(e);document.body.classList.add('scrubbing');
-    const up=()=>{removeEventListener('pointermove',go);removeEventListener('pointerup',up);document.body.classList.remove('scrubbing');if(wasPlaying)play()};
+    const up=()=>{removeEventListener('pointermove',go);removeEventListener('pointerup',up);document.body.classList.remove('scrubbing');
+      if(wasPlaying){PRO.scrub=false;play()}else scrubSettle()};
     addEventListener('pointermove',go);addEventListener('pointerup',up);
   };
   ph.addEventListener('pointerdown',e=>{if(e.button===0)scrub(e)});
